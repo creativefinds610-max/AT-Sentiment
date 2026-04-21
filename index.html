@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analytics Translation · Team Sentiment</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --cream:#F7F4EF;--cream-dk:#EDE9E1;--navy:#0D1B4B;--navy-md:#1A2D6B;
+  --amber:#E8873B;--amber-lt:#FFF0E4;--teal:#1A8C7A;--teal-lt:#E0F4F1;
+  --coral:#C44436;--coral-lt:#FDE8E6;--gold:#C89E10;--gold-lt:#FDF5E0;
+  --txt:#1C1C2E;--txt-md:#4B4F6B;--txt-lt:#888BAA;--border:#DDD8CF;--white:#fff;
+  --r:14px;--r-sm:8px;--sh:0 2px 8px rgba(13,27,75,.10),0 8px 24px rgba(13,27,75,.07);
+  --sh-lg:0 4px 16px rgba(13,27,75,.12),0 16px 48px rgba(13,27,75,.10);
+  --abg:#0A1628;--abg2:#0F1E38;--acard:#152040;--abrd:rgba(255,255,255,.07);
+  --atxt:#E8EBF4;--atxt-md:#8A90B0;--atxt-dm:#525878;
+  --aac:#4F8EF7;--aac2:#FF7055;--aok:#36C97E;--awk:#F5B942;--aer:#FF5050;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--cream);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:'Outfit',sans-serif;line-height:1.2}
+#app{min-height:100vh}
+.wrap{max-width:640px;margin:0 auto;padding:0 20px}
+.awrap{max-width:1140px;margin:0 auto;padding:0 24px}
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);padding:28px;border:1px solid rgba(0,0,0,.04)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:13px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .18s cubic-bezier(.4,0,.2,1);font-family:'DM Sans',sans-serif;text-decoration:none;white-space:nowrap}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+.btn-p{background:var(--navy);color:#fff;box-shadow:0 2px 8px rgba(13,27,75,.25)}
+.btn-p:hover:not(:disabled){background:var(--navy-md);transform:translateY(-1px);box-shadow:0 4px 14px rgba(13,27,75,.3)}
+.btn-s{background:transparent;color:var(--navy);border:2px solid var(--border)}
+.btn-s:hover:not(:disabled){border-color:var(--navy);background:var(--cream)}
+.btn-d{background:var(--coral);color:#fff}
+.btn-d:hover:not(:disabled){background:#B03B30}
+.btn-full{width:100%}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:8px}
+.abtn{background:rgba(255,255,255,.08);color:var(--atxt);border:1px solid var(--abrd);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:6px}
+.abtn:hover{background:rgba(255,255,255,.14)}
+.abtn-ac{background:var(--aac);color:#fff;box-shadow:0 2px 8px rgba(79,142,247,.35);border:none}
+.abtn-ac:hover{background:#3A7AE0}
+.alert{display:flex;gap:12px;align-items:flex-start;padding:14px 18px;border-radius:var(--r-sm);font-size:14px;line-height:1.6}
+.al-info{background:#EEF4FF;color:#1A3A7A;border:1px solid #B8D0FF}
+.al-ok{background:var(--teal-lt);color:#0D5C4F;border:1px solid #A0DDD6}
+.al-warn{background:var(--gold-lt);color:#7A5A0A;border:1px solid #E8D080}
+.al-err{background:var(--coral-lt);color:#7A2010;border:1px solid #FACAC4}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.spinner{width:32px;height:32px;border-radius:50%;border:3px solid rgba(255,255,255,.1);border-top-color:var(--aac);animation:spin .75s linear infinite}
+.spinner-dk{border-color:var(--border);border-top-color:var(--navy)}
+.spin-sm{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .75s linear infinite;vertical-align:middle;margin-right:6px}
+.sh{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;box-shadow:0 1px 8px rgba(13,27,75,.06)}
+.sh-in{max-width:640px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.lm{width:36px;height:36px;border-radius:10px;background:var(--navy);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:15px;color:#fff;letter-spacing:-.03em}
+.ln{font-family:'Outfit',sans-serif;font-weight:700;font-size:16px;color:var(--txt)}
+.ls{font-size:11px;color:var(--txt-lt);margin-top:1px}
+.hal{font-size:12px;font-weight:500;color:var(--txt-lt);text-decoration:none;padding:6px 12px;border-radius:20px;border:1px solid var(--border);transition:all .15s}
+.hal:hover{color:var(--navy);border-color:var(--navy)}
+.sp{padding:32px 0 80px}
+.hero{text-align:center;padding:40px 20px 0;margin-bottom:28px}
+.hbadge{display:inline-flex;align-items:center;gap:6px;background:var(--amber-lt);color:var(--amber);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;margin-bottom:16px;border:1px solid rgba(232,135,59,.2)}
+.hero h1{font-size:28px;font-weight:800;color:var(--navy);margin-bottom:8px}
+.hero p{color:var(--txt-md);font-size:15px;max-width:440px;margin:0 auto;line-height:1.65}
+.prog-track{height:3px;background:var(--border);border-radius:2px;margin-bottom:28px}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--navy),var(--amber));border-radius:2px;transition:width .4s ease}
+.qb{margin-bottom:32px}
+.ql{font-weight:600;font-size:15px;color:var(--txt);margin-bottom:14px;line-height:1.5}
+.ql em{color:var(--txt-lt);font-style:normal;font-size:13px;font-weight:400}
+.qn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--navy);color:#fff;border-radius:6px;font-size:12px;font-weight:700;margin-right:8px;font-family:'DM Mono',monospace;flex-shrink:0;vertical-align:middle}
+.sg{display:flex;gap:6px;flex-wrap:wrap}
+.sb{width:46px;height:46px;border-radius:10px;border:2px solid var(--border);background:var(--cream);font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--txt-md);cursor:pointer;transition:all .15s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;justify-content:center}
+.sb:hover{border-color:var(--navy);color:var(--navy);background:#fff;transform:translateY(-1px);box-shadow:0 2px 6px rgba(13,27,75,.12)}
+.sb.on{background:var(--navy);border-color:var(--navy);color:#fff;transform:scale(1.08) translateY(-2px);box-shadow:0 3px 10px rgba(13,27,75,.3)}
+.slbls{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--txt-lt);padding:0 2px}
+.ca{width:100%;padding:14px 16px;border-radius:10px;border:2px solid var(--border);background:var(--cream);font-size:14px;font-family:'DM Sans',sans-serif;color:var(--txt);resize:vertical;min-height:96px;line-height:1.6;transition:border-color .15s,background .15s}
+.ca:focus{outline:none;border-color:var(--navy);background:#fff;box-shadow:0 0 0 3px rgba(13,27,75,.06)}
+.ca::placeholder{color:var(--txt-lt)}
+.pvbox{background:linear-gradient(135deg,#F0F4FF,#E8F4FF);border:1px solid #C0D4F8;border-radius:var(--r);padding:18px;margin-bottom:24px;display:flex;gap:14px}
+.pvtxt{font-size:13px;color:#1A3A7A;line-height:1.65}
+.pvtxt strong{color:#0D1B4B}
+.tf{margin-bottom:20px}
+.fl{font-weight:600;font-size:14px;color:var(--txt);margin-bottom:8px;display:block}
+.ti{width:100%;padding:13px 16px;border-radius:10px;border:2px solid var(--border);font-size:15px;font-family:'DM Sans',sans-serif;color:var(--txt);background:#fff;transition:border-color .15s}
+.ti:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(13,27,75,.06)}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}
+.trio-c{background:var(--cream);border-radius:12px;padding:18px 12px;text-align:center;border:1px solid var(--border)}
+.trio-v{font-family:'DM Mono',monospace;font-size:36px;font-weight:500;margin-bottom:4px}
+.trio-l{font-size:11px;color:var(--txt-lt);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.divider{border:none;border-top:1px solid var(--border);margin:28px 0}
+.alp{min-height:100vh;background:var(--abg);display:flex;align-items:center;justify-content:center;padding:20px}
+.lcard{background:var(--acard);border:1px solid var(--abrd);border-radius:20px;padding:40px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4);animation:up .4s ease}
+.llm{width:56px;height:56px;background:var(--aac);border-radius:15px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:22px;color:#fff;margin:0 auto 20px;box-shadow:0 4px 16px rgba(79,142,247,.4)}
+.lt{font-size:22px;font-weight:800;color:var(--atxt);text-align:center;margin-bottom:4px}
+.ls2{font-size:13px;color:var(--atxt-md);text-align:center;margin-bottom:28px}
+.lin{width:100%;padding:13px 16px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--abrd);color:var(--atxt);font-size:15px;font-family:'DM Sans',sans-serif;margin-bottom:14px;transition:border-color .15s}
+.lin:focus{outline:none;border-color:var(--aac);background:rgba(255,255,255,.09)}
+.lerr{background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.25);color:#FF8585;padding:11px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;animation:fi .2s ease}
+.lbtn{width:100%;padding:14px;background:var(--aac);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s,transform .15s;box-shadow:0 3px 12px rgba(79,142,247,.4)}
+.lbtn:hover{background:#3A7AE0;transform:translateY(-1px)}
+.lback{display:block;text-align:center;margin-top:20px;font-size:13px;color:var(--atxt-md);text-decoration:none}
+.lback:hover{color:var(--atxt)}
+.ap{background:var(--abg);min-height:100vh;color:var(--atxt)}
+.atb{background:var(--abg2);border-bottom:1px solid var(--abrd);position:sticky;top:0;z-index:50}
+.atb-in{max-width:1140px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.alw{display:flex;align-items:center;gap:10px}
+.alm{width:34px;height:34px;background:var(--aac);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:14px;color:#fff}
+.aln{font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;color:var(--atxt)}
+.als{font-size:11px;color:var(--atxt-md)}
+.apill{background:rgba(79,142,247,.15);color:var(--aac);border:1px solid rgba(79,142,247,.25);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600}
+.alo{background:transparent;color:var(--atxt-md);border:1px solid var(--abrd);padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.alo:hover{color:var(--atxt);border-color:rgba(255,255,255,.2)}
+.tstrip{background:var(--abg2);border-bottom:1px solid var(--abrd);overflow-x:auto}
+.tstrip::-webkit-scrollbar{height:0}
+.tsi{max-width:1140px;margin:0 auto;padding:0 24px;display:flex}
+.tab{padding:13px 20px;font-size:13px;font-weight:600;color:var(--atxt-md);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'DM Sans',sans-serif}
+.tab:hover{color:var(--atxt)}
+.tab.on{color:var(--aac);border-bottom-color:var(--aac)}
+.tc{padding:28px 0}
+.acard{background:var(--acard);border:1px solid var(--abrd);border-radius:var(--r);padding:24px}
+.mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px}
+.mc{background:var(--acard);border:1px solid var(--abrd);border-radius:var(--r);padding:22px 20px;animation:up .3s ease both}
+.mc:nth-child(1){animation-delay:.05s}.mc:nth-child(2){animation-delay:.1s}.mc:nth-child(3){animation-delay:.15s}.mc:nth-child(4){animation-delay:.2s}
+.mv{font-family:'DM Mono',monospace;font-size:44px;font-weight:500;margin-bottom:2px;line-height:1}
+.ml{font-size:12px;font-weight:600;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.06em}
+.ms{font-size:12px;color:var(--atxt-dm);margin-top:4px}
+.mtag{display:inline-block;margin-top:10px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.tg-ok{background:rgba(54,201,126,.15);color:var(--aok)}
+.tg-md{background:rgba(245,185,66,.15);color:var(--awk)}
+.tg-lo{background:rgba(255,80,80,.15);color:var(--aer)}
+.sh2{margin-bottom:18px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.st{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;color:var(--atxt);margin-bottom:2px}
+.ss{font-size:13px;color:var(--atxt-md)}
+.cw{position:relative;height:280px}
+.dt{width:100%;border-collapse:collapse;font-size:13px}
+.dt th{padding:10px 14px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--atxt-md);border-bottom:1px solid var(--abrd)}
+.dt td{padding:14px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--atxt)}
+.dt tr:last-child td{border-bottom:none}
+.dt tr:hover td{background:rgba(255,255,255,.02)}
+.nc{font-family:'DM Mono',monospace;font-size:15px;font-weight:500}
+.cluster{border-radius:12px;padding:18px;margin-bottom:10px;border-left:4px solid transparent;animation:up .3s ease both;background:rgba(255,255,255,.04)}
+.cl-p{border-left-color:var(--aok)}.cl-n{border-left-color:var(--awk)}.cl-b{border-left-color:var(--aer)}
+.ch{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.cn{font-weight:700;font-size:15px;color:var(--atxt)}
+.cbadge{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-left:auto}
+.cb-p{background:rgba(54,201,126,.15);color:var(--aok)}.cb-n{background:rgba(245,185,66,.15);color:var(--awk)}.cb-b{background:rgba(255,80,80,.15);color:var(--aer)}
+.ct{font-size:13px;color:var(--atxt-md);line-height:1.65}
+.sbanner{border-radius:14px;padding:22px;margin-bottom:20px;display:flex;align-items:center;gap:18px;animation:up .3s ease}
+.sb-p{background:rgba(54,201,126,.08);border:1px solid rgba(54,201,126,.2)}
+.sb-n{background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.2)}
+.sb-b{background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2)}
+.sem-ico{font-size:44px}.sem-t{font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;color:var(--atxt);margin-bottom:4px}
+.sem-s{font-size:13px;color:var(--atxt-md);line-height:1.6}
+.sug{background:rgba(255,255,255,.04);border:1px solid var(--abrd);border-radius:12px;padding:18px;margin-bottom:10px;display:flex;gap:16px;animation:up .3s ease both}
+.si{font-size:28px;flex-shrink:0}.st2{font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;color:var(--atxt);margin-bottom:4px}
+.sd{font-size:13px;color:var(--atxt-md);line-height:1.65}
+.utag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:6px}
+.u-im{background:rgba(255,80,80,.15);color:var(--aer)}.u-sh{background:rgba(245,185,66,.15);color:var(--awk)}.u-on{background:rgba(79,142,247,.15);color:var(--aac)}
+.rrow{display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:10px;margin-bottom:8px;background:rgba(255,255,255,.04);border:1px solid var(--abrd);gap:12px;flex-wrap:wrap}
+.rn{font-weight:700;font-size:14px;color:var(--atxt)}.rm{font-size:12px;color:var(--atxt-dm);margin-top:2px}
+.rs{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700}
+.rs-o{background:rgba(54,201,126,.15);color:var(--aok)}.rs-c{background:rgba(138,144,176,.15);color:var(--atxt-md)}.rs-h{background:rgba(79,142,247,.12);color:var(--aac)}
+.afi{background:rgba(255,255,255,.07);border:1px solid var(--abrd);border-radius:9px;padding:11px 14px;color:var(--atxt);font-size:14px;font-family:'DM Sans',sans-serif;width:100%;transition:border-color .15s}
+.afi:focus{outline:none;border-color:var(--aac);background:rgba(255,255,255,.10)}
+.afi::placeholder{color:var(--atxt-dm)}
+.afl{font-size:12px;font-weight:600;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:7px}
+.asel{padding:9px 14px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid var(--abrd);color:var(--atxt);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer}
+.asel:focus{outline:none;border-color:var(--aac)}
+.asel option{background:#1A2D6B}
+.empty{text-align:center;padding:56px 20px;color:var(--atxt-md);animation:fi .3s ease}
+.ei{font-size:48px;margin-bottom:14px}.et{font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;color:var(--atxt);margin-bottom:8px}.es{font-size:13px;line-height:1.6;max-width:360px;margin:0 auto}
+.lc{text-align:center;padding:64px 20px;display:flex;flex-direction:column;align-items:center;gap:16px;color:var(--atxt-md)}
+.ldot{width:8px;height:8px;background:var(--aok);border-radius:50%;animation:pulse 2s ease infinite;display:inline-block}
+.asep{border:none;border-top:1px solid var(--abrd);margin:20px 0}
+.nsurv{min-height:60vh;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px}
+.resp-card{background:rgba(255,255,255,.04);border:1px solid var(--abrd);border-radius:10px;padding:16px;margin-bottom:8px;font-size:13px}
+.resp-scores{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.resp-s{background:rgba(0,0,0,.2);border-radius:8px;padding:8px 12px;text-align:center;min-width:80px}
+.resp-sv{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;margin-bottom:2px}
+.resp-sl{font-size:10px;color:var(--atxt-dm);text-transform:uppercase;letter-spacing:.05em}
+.resp-qa{margin-bottom:8px;color:var(--atxt-md);line-height:1.6}
+.resp-ql{font-weight:600;color:var(--atxt-dm);margin-right:6px}
+@media(max-width:580px){
+  .mrow{grid-template-columns:repeat(2,1fr)}
+  .trio{grid-template-columns:repeat(3,1fr)}
+  .mv{font-size:36px}
+  .card{padding:20px}
+  .tab{padding:12px 14px;font-size:12px}
+  .sg{gap:5px}
+  .sb{width:40px;height:40px;font-size:13px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--cream);">
+    <div style="text-align:center;"><div class="spinner spinner-dk" style="margin:0 auto 16px;"></div><div style="font-size:14px;color:var(--txt-lt);">Connecting…</div></div>
+  </div>
+</div>
+<script>
+/* ────────────────────────────────────────────
+   CONFIG
+──────────────────────────────────────────── */
+const PW='admin9469', APP='Analytics Translation';
+const SUPA_URL='https://whmktjyikdtxtjhrqfmg.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndobWt0anlpa2R0eHRqaHJxZm1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjU2MTAsImV4cCI6MjA5MjMwMTYxMH0.VAiP9M5YJq4C8bUvt2ZwjSUAkNvcN4djYNRKXcOj-e8';
+
+/* ────────────────────────────────────────────
+   SUPABASE HELPER
+──────────────────────────────────────────── */
+async function supa(path, options={}){
+  const res=await fetch(`${SUPA_URL}/rest/v1/${path}`,{
+    ...options,
+    headers:{
+      'apikey':SUPA_KEY,
+      'Authorization':`Bearer ${SUPA_KEY}`,
+      'Content-Type':'application/json',
+      ...(options.headers||{})
+    }
+  });
+  if(!res.ok){const e=await res.text();throw new Error(`DB ${res.status}: ${e}`);}
+  const t=await res.text();return t?JSON.parse(t):null;
+}
+
+/* ────────────────────────────────────────────
+   HISTORICAL DATA
+──────────────────────────────────────────── */
+const HIST=[
+ {id:'jan2025',name:'January 2025',short:'Jan 25',date:'2025-01-15',status:'closed',isHist:true,label:'Baseline',q1:7.86,q2:9.57,q3:9.29,count:8,
+  cx:{q4:['I am happy with the level of openness.','Yes happy — no change needed.','I really appreciate our current level of openness — I feel I could reach out to any translator personally.','I enjoy the level of openness — it can be a little clearer but all in all a good balance.','Happy with it, although sometimes I wonder if I\'m overthinking things.','Yes.','I am content with the level of openness.','Happy — I feel comfortable sharing with the team.'],
+  q5:['Team activities.','All of the above — really enjoy the weekly team meetings and team roulette.','Team roulette is an amazing activity.','All the above + the group chat.','Catch-up sessions and free-topics time are great for connectedness without pressure.','Team meetings, team roulette, ad hoc catch-ups.','Weekly team calls and group chat.','Team roulette — I love the 1-to-1 connection it provides.'],
+  q6:['Often get to work in small groups with ATs I might not otherwise work with, and tackle fun challenges.','They help us get to know each other and where we can help and support one another.','They keep things fresh — always connecting people in different ways and strengthening relationships.','They create personal connections beyond work.','The variety means there\'s something for everyone, avoiding the same people always connecting.','Team roulette specifically — the 1-to-1 connection compared to bigger group meetings is really valuable.'],
+  q7:['Regular group catch-ups within Big Rocks.','New and different activities always keep things fresh.','Being able to connect as a whole team, or at least a sub-set, at the same time — even 30 minutes.','More transparency in chapter decisions.','Interactive challenges — recipe of the month, hobby sharing, collaborative problems.','Reduce meeting load with async updates — too many meetings in general.','Moving towards people taking ownership for collaboration rather than waiting.'],
+  q8:['Catch-ups within Big Rocks would be valuable.','Could this topic come up at a team roulette?','Team meetings should be once a month with everyone — a reasonable shared time slot for all members.','Love the idea of a cadence similar to team roulette to keep people connected after they\'ve met recently.']}},
+ {id:'sept2025',name:'September 2025',short:'Sep 25',date:'2025-09-15',status:'closed',isHist:true,q1:7.66,q2:9.00,q3:8.95,count:10,
+  cx:{q4:['I feel comfortable being open, always love it!','Yes, I feel we are very good about sharing our thoughts and opinions.','I am satisfied with this level of openness.','Feeling more comfortable with the team structure — still a work in progress but going well.','It\'s a great team and I do feel comfortable with everyone.','I feel it is good.','I am very happy with this level of openness — it makes us a closer team.','The team has maintained excellent openness and I feel comfortable sharing.','Yes, I think we have a great team dynamic.','Yes — very good about sharing thoughts and opinions.'],
+  q5:['The team activity, team roulette sessions and team catch-ups.','One to one conversations.','Genuinely, all of them ensure openness in a relaxed environment together.','There has been a real focus on team activities and I\'m enjoying them a lot.','Team meetings, team activities and the weekly catch-ups.','Team activities feel like a manageable way to keep connected.','It allows us a chance to learn more on a personal level.','It\'s a great focus here — keep it up.','Team roulette, quarterly team activities, ad hoc catch-ups.','One to one conversations are particularly valuable.'],
+  q6:['They allow us to connect beyond the work we do.','Would be interested in more work-related updates and domain updates the chapter provides.','Including collaborative sessions that could strengthen relationships.','I particularly feel we are a really connected team — keep doing what we are doing.','They make people feel they can lean on those around them and still share challenges.','They allow us to connect beyond just work.','These activities create space for people to be genuinely curious about each other.'],
+  q7:['How to ensure activities encourage interaction and connection instead of only playing games?','More work-related updates but should be covered by domain sessions.','Collaborative problem-solving sessions as a team.','Ensure NR rotates through everyone before duplicating.','Set up proactive 1-on-1 connection sessions — reach out to people you haven\'t connected with recently.','Could we have a Skills Challenge as a group across the team?','Continue to share ideas and incorporate into the CoE process.'],
+  q8:['Keep up the variety in how we connect — it really helps.','Continue to share domain updates and incorporate into the CoE process.','Some proactive outreach to newer team members would be appreciated.','The mix of group things and 1-on-1 is ideal — please keep both elements.']}},
+ {id:'jan2026',name:'January 2026',short:'Jan 26',date:'2026-01-15',status:'closed',isHist:true,q1:7.25,q2:8.00,q3:7.18,count:11,
+  cx:{q4:['Happy with the current level of openness.','Yes very happy.','Happy with the current state.','I am happy with the status quo.','Super happy with the current situation — really great to see how well the team connects.','Good.','Not overall — openness feels a little low again.','I am content with the level of openness.','Great team dynamics but the openness has decreased slightly.','Quite satisfactory.','I would like more openness but understand the team is busy.'],
+  q5:['Quarterly team activity.','Want quarterly and ad hoc catch-ups.','Team meetings and team roulette.','Team meetings and quarterly activities.','Team roulette is still my favourite activity.','Team roulette, quarterly team activities, ad hoc catch-ups.','Team roulette and team meetings.','Ad hoc catch-ups.','Weekly meetings and the roulette sessions.','Team bonding events quarterly.','Ad hoc catch-ups and team roulette.'],
+  q6:['They are fun.','Allow getting to know each other better.','Strengthen relationships in a casual setting.','They allow interactions outside formal work — refreshing when deadlines are high.','Make the team feel connected even when workload is high.','I can connect with teammates in a more relaxed setting.','Provides personal connection beyond just work.','Allows me to see colleagues as humans, not just coworkers.','Team roulette specifically creates genuine 1-to-1 bonds.','They break up the routine — important when project pressure is high.'],
+  q7:['Increase in project workload is making it harder to commit to team activities.','Changes in team dynamics and structure have created some distance.','Some feel quarterly activities could be more frequent.','More casual structured catch-ups would help.','Something lighter — a quick 10-min team coffee chat.','Pressure from deliverables makes people feel guilty about team social time.','Better scheduling around project deadlines.','Would appreciate more clarity on what\'s happening at chapter level.','A friendly team challenge or competition would be fun.','Reducing the number of meetings and focusing on quality over quantity.','Fewer but more meaningful interactions.'],
+  q8:['Additional team activities would be welcome.','Flexibility in participation is important as project pressure increases.','Keep it light and low-pressure.','Appreciate everything the team does to maintain connection.','Scheduling around deadlines would make it easier to participate.']}}
+];
+
+/* ────────────────────────────────────────────
+   STATE
+──────────────────────────────────────────── */
+const S={
+  view:'loading',rounds:[],activeRound:null,
+  name:'',ans:{q1:0,q2:0,q3:0,q4:'',q5:'',q6:'',q7:'',q8:''},submitted:null,
+  admin:false,tab:'overview',
+  selCx:null,selSug:null,
+  analysing:false,suggesting:false,
+  cxCache:{},sugCache:{},charts:{}
+};
+
+/* ────────────────────────────────────────────
+   DATA LAYER  (Supabase)
+──────────────────────────────────────────── */
+async function initData(){
+  // Load rounds from Supabase
+  let rows=await supa('rounds?select=*&order=date.asc');
+
+  // First-time setup: seed historical rounds if table is empty
+  if(!rows||!rows.length){
+    for(const h of HIST){
+      await supa('rounds',{method:'POST',headers:{'Prefer':'return=minimal'},
+        body:JSON.stringify({id:h.id,name:h.name,short:h.short,date:h.date,status:'closed',is_hist:true,label:h.label||null,q1:h.q1,q2:h.q2,q3:h.q3,count:h.count})});
+    }
+    rows=await supa('rounds?select=*&order=date.asc');
+  }
+
+  // Ensure comment data exists for historical rounds (idempotent)
+  const existingCx=await supa('comments_cache?select=round_id');
+  const hasCx=new Set((existingCx||[]).map(r=>r.round_id));
+  for(const h of HIST){
+    if(!hasCx.has(h.id)){
+      await supa('comments_cache',{method:'POST',headers:{'Prefer':'return=minimal'},
+        body:JSON.stringify({round_id:h.id,data:h.cx})});
+    }
+  }
+
+  S.rounds=(rows||[]).map(r=>({
+    id:r.id,name:r.name,short:r.short,date:r.date,
+    status:r.status,isHist:r.is_hist,label:r.label,
+    q1:parseFloat(r.q1)||0,q2:parseFloat(r.q2)||0,q3:parseFloat(r.q3)||0,count:r.count||0
+  }));
+  S.activeRound=S.rounds.find(r=>r.status==='open')||null;
+}
+
+async function loadResp(rid){
+  const d=await supa(`responses?round_id=eq.${rid}&select=*&order=timestamp.asc`);
+  return(d||[]).map(r=>({id:r.id,timestamp:r.timestamp,scores:r.scores,comments:r.comments}));
+}
+
+async function saveResp(rid,resp){
+  await supa('responses',{method:'POST',headers:{'Prefer':'return=minimal'},
+    body:JSON.stringify({id:resp.id,round_id:rid,timestamp:resp.timestamp,scores:resp.scores,comments:resp.comments})});
+}
+
+async function submitted(rid,name){
+  const h=nh(name,rid);
+  const d=await supa(`submissions?round_id=eq.${rid}&hash=eq.${h}&select=hash`);
+  return d&&d.length>0;
+}
+
+async function addSub(rid,h){
+  await supa('submissions',{method:'POST',headers:{'Prefer':'return=minimal'},
+    body:JSON.stringify({round_id:rid,hash:h})});
+}
+
+async function getMetrics(rid){
+  const r=S.rounds.find(x=>x.id===rid);if(!r)return null;
+  // Use stored values for historical and closed rounds (fast, no extra DB call)
+  if(r.isHist||r.status==='closed'){
+    return{q1:r.q1,q2:r.q2,q3:r.q3,comp:+((r.q1+r.q2+r.q3)/3).toFixed(2),n:r.count};
+  }
+  // For open rounds: compute live from Supabase
+  const resp=await loadResp(rid);
+  if(!resp.length)return{q1:0,q2:0,q3:0,comp:0,n:0};
+  const n=resp.length,
+        q1=resp.reduce((s,r)=>s+r.scores.q1,0)/n,
+        q2=resp.reduce((s,r)=>s+r.scores.q2,0)/n,
+        q3=resp.reduce((s,r)=>s+r.scores.q3,0)/n;
+  return{q1:+q1.toFixed(2),q2:+q2.toFixed(2),q3:+q3.toFixed(2),comp:+((q1+q2+q3)/3).toFixed(2),n};
+}
+
+async function loadCxData(sid){
+  const d=await supa(`comments_cache?round_id=eq.${sid}&select=data`);
+  return d&&d.length?d[0].data:null;
+}
+async function loadAnalysis(sid){
+  const d=await supa(`analysis_cache?round_id=eq.${sid}&select=data`);
+  return d&&d.length?d[0].data:null;
+}
+async function saveAnalysis(sid,result){
+  await supa('analysis_cache',{method:'POST',
+    headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+    body:JSON.stringify({round_id:sid,data:result})});
+}
+async function loadSuggestions(sid){
+  const d=await supa(`suggestions_cache?round_id=eq.${sid}&select=data`);
+  return d&&d.length?d[0].data:null;
+}
+async function saveSuggestions(sid,result){
+  await supa('suggestions_cache',{method:'POST',
+    headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+    body:JSON.stringify({round_id:sid,data:result})});
+}
+
+/* ────────────────────────────────────────────
+   HELPERS
+──────────────────────────────────────────── */
+function sc(s){if(s>=8)return'var(--aok)';if(s>=6)return'var(--awk)';return'var(--aer)';}
+function stag(s){if(s>=8)return['tg-ok','● Strong'];if(s>=6)return['tg-md','● Moderate'];return['tg-lo','● Needs attention'];}
+function lsc(s){if(s>=8)return'var(--teal)';if(s>=6)return'var(--gold)';return'var(--coral)';}
+function dc(k){if(S.charts[k]){S.charts[k].destroy();delete S.charts[k];}}
+function $id(id){return document.getElementById(id);}
+function nh(name,rid){let s=name.toLowerCase().trim()+'::'+rid,h=5381;for(let i=0;i<s.length;i++){h=((h<<5)+h)^s.charCodeAt(i);h=h|0;}return Math.abs(h).toString(36);}
+
+/* ────────────────────────────────────────────
+   NAVIGATION
+──────────────────────────────────────────── */
+async function nav(v){S.view=v;await render();}
+function switchTab(t){S.tab=t;document.querySelectorAll('.tab').forEach(b=>{b.classList.toggle('on',b.getAttribute('data-tab')===t);});rTab(t);}
+
+/* ────────────────────────────────────────────
+   RENDER: SURVEY VIEWS
+──────────────────────────────────────────── */
+function hdr(showAdmin=true){
+  return`<header class="sh"><div class="sh-in"><div class="logo"><div class="lm">AT</div><div><div class="ln">${APP}</div><div class="ls">Team Sentiment Survey</div></div></div>${showAdmin?`<a href="#" class="hal" onclick="nav('admin-login');return false;">Admin →</a>`:''}</div></header>`;
+}
+
+function vLanding(){
+  const r=S.activeRound;
+  return`${hdr()}<div class="sp"><div class="wrap"><div class="hero"><div class="hbadge">💬 Team Bonding Survey${r?' · '+r.name:''}</div><h1>${APP}</h1><p>A short anonymous survey to help us understand how connected we feel as a team and what, if anything, we can do to improve.</p></div>${r?`<div class="card"><p style="font-size:15px;color:var(--txt-md);line-height:1.7;margin-bottom:20px;">This survey should take only a few minutes. Your honest answers help shape how we bond and grow as a team.</p><div class="alert al-info" style="margin-bottom:20px;"><span>🔒</span><span>Your responses are <strong>completely anonymous</strong>. Only your first name is used to confirm access and prevent duplicate submissions — it is <strong>never</strong> stored alongside your answers.</span></div><button class="btn btn-p btn-full" style="font-size:16px;padding:15px;" onclick="nav('name-entry')">Start Survey →</button></div>`:`<div class="nsurv"><div style="font-size:56px;margin-bottom:16px;">📋</div><h2 style="font-size:22px;color:var(--navy);margin-bottom:8px;">No Active Survey</h2><p style="color:var(--txt-md);font-size:15px;">There's no survey open right now. Check back when the next round opens.</p></div>`}</div></div>`;
+}
+
+function vNameEntry(){
+  return`${hdr(false)}<div class="sp"><div class="wrap"><div class="card" style="animation:up .3s ease;"><h2 style="font-size:22px;font-weight:800;color:var(--navy);margin-bottom:18px;">Before we begin</h2><div class="pvbox"><div style="font-size:24px;flex-shrink:0;margin-top:1px;">🛡️</div><div class="pvtxt"><strong>Your privacy matters to us.</strong><br>We ask for your first name <em>only</em> to confirm you've accessed this survey and to prevent duplicate submissions. <strong>Your name will NOT be recorded alongside your answers</strong> — every response is stored completely anonymously. Please answer as openly and honestly as you feel comfortable.</div></div><div class="tf"><label class="fl" for="ni">Your first name</label><input type="text" id="ni" class="ti" placeholder="Enter your first name…" value="${S.name}" autocomplete="off" oninput="S.name=this.value.trim()" onkeydown="if(event.key==='Enter')doName()"/></div><div id="nerr" style="display:none;" class="alert al-err" style="margin-bottom:14px;"></div><button class="btn btn-p btn-full" style="font-size:15px;" onclick="doName()">Continue to Survey →</button><button class="btn btn-s btn-full" style="margin-top:10px;" onclick="nav('landing')">← Back</button></div></div></div>`;
+}
+
+function vSurvey(){
+  const a=S.ans;
+  function sr(q,v){return`<div class="sg">${[1,2,3,4,5,6,7,8,9,10].map(i=>`<button class="sb${v===i?' on':''}" onclick="pickScore('${q}',${i})">${i}</button>`).join('')}</div><div class="slbls"><span>Not at all</span><span>Very much</span></div>`;}
+  const done=(a.q1>0?1:0)+(a.q2>0?1:0)+(a.q3>0?1:0);
+  const pct=Math.min(100,done/3*45+((a.q4||a.q5||a.q6||a.q7||a.q8)?55:0));
+  return`${hdr(false)}<div class="sp"><div class="wrap"><div class="card" style="animation:fi .25s ease;"><div class="prog-track"><div class="prog-fill" id="prg" style="width:${pct}%"></div></div><h2 style="font-size:19px;font-weight:800;color:var(--navy);margin-bottom:24px;">${S.activeRound?.name||'Survey'}</h2>
+  <div class="qb"><div class="ql"><span class="qn">1</span>How connected do you feel to the other Translators in the team? <em>(1 = not at all, 10 = very)</em></div>${sr('q1',a.q1)}</div>
+  <div class="qb"><div class="ql"><span class="qn">2</span>How comfortable do you feel reaching out to others in the team for help or advice when needed? <em>(1 = not at all, 10 = very)</em></div>${sr('q2',a.q2)}</div>
+  <div class="qb"><div class="ql"><span class="qn">3</span>To what extent do you feel like you can communicate openly and honestly with the chapter? <em>(1 = not at all, 10 = completely)</em></div>${sr('q3',a.q3)}</div>
+  <hr class="divider">
+  <div class="qb"><div class="ql"><span class="qn">4</span>Are you happy with this level of 'openness', or would you like it to change? Share your thoughts.</div><textarea class="ca" placeholder="Share your thoughts…" oninput="S.ans.q4=this.value">${a.q4}</textarea></div>
+  <div class="qb"><div class="ql"><span class="qn">5</span>What do you feel are the key activities as a chapter that increase how connected you feel to others? <em>(e.g. team meetings, team roulette, quarterly team activity, ad hoc catch ups…)</em></div><textarea class="ca" placeholder="e.g. team roulette, weekly meetings…" oninput="S.ans.q5=this.value">${a.q5}</textarea></div>
+  <div class="qb"><div class="ql"><span class="qn">6</span>Why are these activities the most valuable to you?</div><textarea class="ca" placeholder="What makes them valuable?" oninput="S.ans.q6=this.value">${a.q6}</textarea></div>
+  <div class="qb"><div class="ql"><span class="qn">7</span>What, if anything, do you think we could do to improve the level of bonding within the team?</div><textarea class="ca" placeholder="Any ideas or suggestions…" oninput="S.ans.q7=this.value">${a.q7}</textarea></div>
+  <div class="qb"><div class="ql"><span class="qn">8</span>Feel free to share any further thoughts or ideas here.</div><textarea class="ca" placeholder="Anything else on your mind…" oninput="S.ans.q8=this.value">${a.q8}</textarea></div>
+  <div id="serr" style="display:none;" class="alert al-err" style="margin-bottom:16px;"></div>
+  <button class="btn btn-p btn-full" style="font-size:15px;" id="subbtn" onclick="doSubmit()">Submit Survey ✓</button>
+  </div></div></div>`;
+}
+
+function vSuccess(){
+  const sc2=S.submitted;
+  return`${hdr(false)}<div class="sp"><div class="wrap"><div class="card" style="text-align:center;animation:up .4s ease;"><div style="font-size:72px;margin-bottom:16px;animation:up .5s ease;">🎉</div><h2 style="font-size:26px;font-weight:800;color:var(--navy);margin-bottom:12px;">Thank you!</h2><p style="color:var(--txt-md);font-size:15px;line-height:1.7;margin-bottom:28px;">Your feedback has been recorded anonymously. It helps us build a more connected, open team. We truly appreciate your honesty!</p><div style="background:var(--cream);border-radius:14px;padding:22px;margin-bottom:20px;"><div style="font-size:11px;font-weight:700;color:var(--txt-lt);text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px;">Your Scores</div><div class="trio"><div class="trio-c"><div class="trio-v" style="color:${lsc(sc2.q1)}">${sc2.q1}</div><div class="trio-l">Connectedness</div></div><div class="trio-c"><div class="trio-v" style="color:${lsc(sc2.q2)}">${sc2.q2}</div><div class="trio-l">Reach Out</div></div><div class="trio-c"><div class="trio-v" style="color:${lsc(sc2.q3)}">${sc2.q3}</div><div class="trio-l">Openness</div></div></div><p style="font-size:12px;color:var(--txt-lt);margin-top:12px;">These are your personal scores only — team averages are not shown to respondents.</p></div><div class="alert al-ok">✅ Your name has not been stored alongside these responses. All data is completely anonymous.</div></div></div></div>`;
+}
+
+/* ────────────────────────────────────────────
+   RENDER: ADMIN LOGIN
+──────────────────────────────────────────── */
+function vAdminLogin(){
+  return`<div class="alp"><div class="lcard"><div class="llm">AT</div><div class="lt">${APP}</div><div class="ls2">Admin Dashboard — Restricted Access</div><div id="lerr" class="lerr">Incorrect password. Please try again.</div><input type="password" id="pwin" class="lin" placeholder="Enter admin password…" onkeydown="if(event.key==='Enter')doLogin()"/><button class="lbtn" onclick="doLogin()">Sign In →</button><a href="#" class="lback" onclick="nav('landing');return false;">← Back to Survey</a></div></div>`;
+}
+
+/* ────────────────────────────────────────────
+   RENDER: ADMIN DASHBOARD
+──────────────────────────────────────────── */
+async function vAdminDash(){
+  const app=$id('app');
+  app.innerHTML=`<div class="ap" id="adp">
+    <div class="atb"><div class="atb-in"><div class="alw"><div class="alm">AT</div><div><div class="aln">${APP}</div><div class="als">Admin Dashboard</div></div></div><div style="display:flex;align-items:center;gap:10px;"><span class="apill">🔐 Admin</span><button class="alo" onclick="doLogout()">Log out</button></div></div></div>
+    <nav class="tstrip"><div class="tsi">
+      <button class="tab${S.tab==='overview'?' on':''}" data-tab="overview" onclick="switchTab('overview')">📊 Overview</button>
+      <button class="tab${S.tab==='trends'?' on':''}" data-tab="trends" onclick="switchTab('trends')">📈 Trends</button>
+      <button class="tab${S.tab==='comments'?' on':''}" data-tab="comments" onclick="switchTab('comments')">💬 Comments</button>
+      <button class="tab${S.tab==='suggestions'?' on':''}" data-tab="suggestions" onclick="switchTab('suggestions')">💡 Suggestions</button>
+      <button class="tab${S.tab==='rounds'?' on':''}" data-tab="rounds" onclick="switchTab('rounds')">⚙️ Rounds</button>
+    </div></nav>
+    <div id="tc" class="tc"><div class="lc"><div class="spinner"></div><span style="font-size:14px;">Loading…</span></div></div>
+  </div>`;
+  await rTab(S.tab);
+}
+
+async function rTab(tab){
+  S.tab=tab;
+  const tc=$id('tc');
+  if(!tc)return;
+  switch(tab){
+    case'overview':    await rOverview(tc);    break;
+    case'trends':      await rTrends(tc);      break;
+    case'comments':    await rComments(tc);    break;
+    case'suggestions': await rSuggestions(tc); break;
+    case'rounds':      await rRounds(tc);      break;
+  }
+}
+
+/* ── OVERVIEW ── */
+async function rOverview(tc){
+  const rounds=S.rounds,latest=rounds.find(r=>r.status==='open')||rounds[rounds.length-1];
+  if(!latest){tc.innerHTML=`<div class="awrap"><div class="empty"><div class="ei">📋</div><div class="et">No data yet</div><div class="es">Create and open a new survey round to get started.</div></div></div>`;return;}
+  const m=await getMetrics(latest.id);
+  const[tc1,tl1]=stag(m.comp),[tc2,tl2]=stag(m.q1),[tc3,tl3]=stag(m.q2),[tc4,tl4]=stag(m.q3);
+  const isOpen=latest.status==='open';
+  let prevHtml='';
+  if(rounds.length>=2){
+    const prev=rounds[rounds.length-2],pm=await getMetrics(prev.id);
+    if(pm){const diff=+(m.comp-pm.comp).toFixed(2),sign=diff>=0?'+':'',col=diff>=0?'var(--aok)':'var(--aer)';
+      prevHtml=`<div class="acard" style="margin-top:14px;"><div style="font-size:11px;font-weight:600;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">vs Previous Round (${prev.name})</div><div style="font-family:'DM Mono',monospace;font-size:32px;font-weight:500;color:${col};">${sign}${diff}</div><div style="font-size:13px;color:var(--atxt-md);margin-top:4px;">Composite: ${pm.comp} → ${m.comp}</div></div>`;
+    }
+  }
+  const aHtml=m.comp>=8?`<div style="background:rgba(54,201,126,.08);border:1px solid rgba(54,201,126,.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--aok);display:flex;gap:10px;margin-top:14px;align-items:flex-start;">🌟 <span>Team sentiment is <strong>strong</strong>. Composite score is above 8/10 — keep up the great work!</span></div>`:
+    m.comp>=6.5?`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--awk);display:flex;gap:10px;margin-top:14px;align-items:flex-start;">⚠️ <span>Team sentiment is <strong>moderate</strong>. There are opportunities to improve. Check the Suggestions tab for tailored recommendations.</span></div>`:
+    `<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--aer);display:flex;gap:10px;margin-top:14px;align-items:flex-start;">🔴 <span>Team sentiment needs <strong>immediate attention</strong>. Composite is below 6.5/10 — check the Suggestions tab for urgent actions.</span></div>`;
+  tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Overview — ${latest.name}${latest.label?` <span style="font-size:13px;font-weight:400;color:var(--atxt-md);">(${latest.label})</span>`:''}</div><div class="ss">${m.n} response${m.n!==1?'s':''} · ${isOpen?`<span style="color:var(--aok);"><span class="ldot"></span> Survey is live</span>`:'Survey closed'}</div></div></div>
+  <div class="mrow">
+    <div class="mc"><div class="mv" style="color:${sc(m.comp)}">${m.comp}</div><div class="ml">Team Bonding</div><div class="ms">Composite Score</div><span class="mtag ${tc1}">${tl1}</span></div>
+    <div class="mc"><div class="mv" style="color:${sc(m.q1)}">${m.q1}</div><div class="ml">Connectedness</div><div class="ms">Q1 Average</div><span class="mtag ${tc2}">${tl2}</span></div>
+    <div class="mc"><div class="mv" style="color:${sc(m.q2)}">${m.q2}</div><div class="ml">Reach Out</div><div class="ms">Q2 Average</div><span class="mtag ${tc3}">${tl3}</span></div>
+    <div class="mc"><div class="mv" style="color:${sc(m.q3)}">${m.q3}</div><div class="ml">Openness</div><div class="ms">Q3 Average</div><span class="mtag ${tc4}">${tl4}</span></div>
+  </div>
+  ${aHtml}${prevHtml}</div>`;
+}
+
+/* ── TRENDS ── */
+async function rTrends(tc){
+  const allM=[];
+  for(const r of S.rounds){const m=await getMetrics(r.id);allM.push({r,m});}
+  tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Trends</div><div class="ss">Metric scores across all survey rounds</div></div></div>
+  <div class="acard" style="margin-bottom:16px;"><div class="cw"><canvas id="tchart"></canvas></div></div>
+  <div class="acard"><table class="dt"><thead><tr><th>Round</th><th>Connectedness</th><th>Reach Out</th><th>Openness</th><th>Composite</th><th>Responses</th><th>Trend</th></tr></thead><tbody>
+  ${allM.map(({r,m},i)=>{
+    const prev=i>0?allM[i-1].m.comp:null;
+    const diff=prev!==null?+(m.comp-prev).toFixed(2):null;
+    const ta=diff===null?'—':diff>0.2?`<span style="color:var(--aok);font-size:18px;">↑</span>`:diff<-0.2?`<span style="color:var(--aer);font-size:18px;">↓</span>`:`<span style="color:var(--awk);font-size:18px;">→</span>`;
+    return`<tr><td><strong style="color:var(--atxt);">${r.name}</strong>${r.label?`<br><small style="color:var(--atxt-dm);">${r.label}</small>`:''}</td><td class="nc" style="color:${sc(m.q1)}">${m.q1}</td><td class="nc" style="color:${sc(m.q2)}">${m.q2}</td><td class="nc" style="color:${sc(m.q3)}">${m.q3}</td><td class="nc" style="color:${sc(m.comp)};font-size:17px;">${m.comp}</td><td style="color:var(--atxt-md);">${m.n}</td><td>${ta}</td></tr>`;
+  }).join('')}
+  </tbody></table></div></div>`;
+  dc('trends');
+  const ctx=$id('tchart');
+  if(ctx){
+    Chart.defaults.color='rgba(138,144,176,.8)';
+    Chart.defaults.borderColor='rgba(255,255,255,.06)';
+    S.charts['trends']=new Chart(ctx,{type:'line',data:{
+      labels:allM.map(({r})=>r.short||r.name),
+      datasets:[
+        {label:'Connectedness',data:allM.map(({m})=>m.q1),borderColor:'#4F8EF7',backgroundColor:'rgba(79,142,247,.1)',tension:.35,pointRadius:5,pointHoverRadius:7,fill:true},
+        {label:'Reach Out',data:allM.map(({m})=>m.q2),borderColor:'#FF7055',backgroundColor:'rgba(255,112,85,.1)',tension:.35,pointRadius:5,pointHoverRadius:7,fill:true},
+        {label:'Openness',data:allM.map(({m})=>m.q3),borderColor:'#36C97E',backgroundColor:'rgba(54,201,126,.1)',tension:.35,pointRadius:5,pointHoverRadius:7,fill:true},
+        {label:'Composite',data:allM.map(({m})=>m.comp),borderColor:'#F5B942',backgroundColor:'rgba(245,185,66,.05)',tension:.35,pointRadius:5,pointHoverRadius:7,borderDash:[6,4]}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,
+      scales:{y:{min:0,max:10,ticks:{stepSize:1,color:'rgba(138,144,176,.7)'},grid:{color:'rgba(255,255,255,.05)'}},x:{grid:{display:false},ticks:{color:'rgba(138,144,176,.7)'}}},
+      plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:18,color:'rgba(232,235,244,.7)',font:{size:12}}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}/10`},backgroundColor:'rgba(21,32,64,.95)',titleColor:'#E8EBF4',bodyColor:'#8A90B0',borderColor:'rgba(79,142,247,.3)',borderWidth:1}}
+    }});
+  }
+}
+
+/* ── COMMENTS ── */
+async function rComments(tc){
+  if(!S.selCx&&S.rounds.length)S.selCx=S.rounds[S.rounds.length-1].id;
+  const sid=S.selCx,selRound=S.rounds.find(r=>r.id===sid);
+  if(!S.cxCache[sid]){const cached=await loadAnalysis(sid);if(cached)S.cxCache[sid]=cached;}
+  const analysis=S.cxCache[sid];
+  tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Comment Analysis</div><div class="ss">AI-powered clustering and sentiment analysis of open responses</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selCxR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runCx('${sid}')">${S.analysing?'<span class="spin-sm"></span>Analysing…':'🤖 Analyse'}</button></div></div>
+  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">The AI model may need to download first (~2.4 GB, one time only)</div></div></div>`:analysis?renderCx(analysis,sid):`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click "Analyse" to run AI-powered theme clustering and sentiment analysis. The AI model runs entirely in your browser — no account needed. First use downloads the model (~2.4 GB).</div></div>`}</div></div>`;
+}
+
+function renderCx(a,sid){
+  const cfg={positive:{bc:'sb-p',cc:'cl-p',bd:'cb-p',lbl:'Positive',ico:'😊'},neutral:{bc:'sb-n',cc:'cl-n',bd:'cb-n',lbl:'Mixed / Neutral',ico:'😐'},negative:{bc:'sb-b',cc:'cl-b',bd:'cb-b',lbl:'Concerns Detected',ico:'😟'}};
+  const oc=cfg[a.overallSentiment]||cfg.neutral;
+  const rawBtn=`<button class="abtn btn-sm" onclick="toggleRaw('${sid}')" style="margin-top:16px;">📋 View Individual Responses</button><div id="raw-${sid}" style="display:none;margin-top:14px;"></div>`;
+  return`<div class="sbanner ${oc.bc}"><div class="sem-ico">${oc.ico}</div><div><div class="sem-t">${oc.lbl}</div><div class="sem-s">${a.overallSummary}</div></div></div>
+  <div style="font-size:11px;font-weight:600;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Key Themes</div>
+  ${(a.themes||[]).map((t,i)=>{const tc2=cfg[t.sentiment]||cfg.neutral;return`<div class="cluster ${tc2.cc}" style="animation-delay:${i*.07}s"><div class="ch"><div class="cn">${t.name}</div><span class="cbadge ${tc2.bd}">${t.sentiment}</span></div><div class="ct">${t.summary}</div></div>`;}).join('')}
+  ${rawBtn}`;
+}
+
+async function toggleRaw(sid){
+  const el=$id('raw-'+sid);
+  if(!el)return;
+  if(el.style.display!=='none'){el.style.display='none';return;}
+  el.innerHTML=`<div class="lc" style="padding:24px;"><div class="spinner"></div></div>`;
+  el.style.display='block';
+  const r=S.rounds.find(x=>x.id===sid);
+  let html='';
+  if(r&&r.isHist){
+    const cx=await loadCxData(sid);
+    if(cx){
+      const qlbls={q4:'Openness',q5:'Key Activities',q6:'Why Valuable',q7:'Improvement Ideas',q8:'Other Thoughts'};
+      html=Object.entries(qlbls).map(([q,lbl])=>`<div style="margin-bottom:18px;"><div style="font-weight:700;font-size:13px;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">${lbl}</div>${(cx[q]||[]).map(s=>`<div class="resp-card">${s}</div>`).join('')}</div>`).join('');
+    }
+  } else if(r){
+    const resps=await loadResp(sid);
+    if(!resps.length){html=`<div style="color:var(--atxt-md);font-size:13px;padding:12px;">No responses yet.</div>`;}
+    else html=resps.map((resp,i)=>`<div class="resp-card"><div style="font-size:11px;color:var(--atxt-dm);margin-bottom:10px;">Response ${i+1} · ${new Date(resp.timestamp).toLocaleDateString('en-GB')}</div><div class="resp-scores"><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q1)}">${resp.scores.q1}</div><div class="resp-sl">Connectedness</div></div><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q2)}">${resp.scores.q2}</div><div class="resp-sl">Reach Out</div></div><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q3)}">${resp.scores.q3}</div><div class="resp-sl">Openness</div></div></div>${Object.entries({q4:'Openness',q5:'Activities',q6:'Why Valuable',q7:'Improvements',q8:'Other'}).map(([k,lbl])=>resp.comments[k]?`<div class="resp-qa"><span class="resp-ql">${lbl}:</span>${resp.comments[k]}</div>`:'').join('')}</div>`).join('');
+  }
+  el.innerHTML=html||`<div style="color:var(--atxt-md);font-size:13px;padding:12px;">No data available.</div>`;
+}
+
+/* ── SUGGESTIONS ── */
+async function rSuggestions(tc){
+  if(!S.selSug&&S.rounds.length)S.selSug=S.rounds[S.rounds.length-1].id;
+  const sid=S.selSug;
+  if(!S.sugCache[sid]){const cached=await loadSuggestions(sid);if(cached)S.sugCache[sid]=cached;}
+  const sugs=S.sugCache[sid];
+  tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">AI Suggestions</div><div class="ss">Actionable recommendations based on scores and team feedback</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selSugR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runSug('${sid}')">${S.suggesting?'<span class="spin-sm"></span>Generating…':'✨ Generate'}</button></div></div>
+  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">The AI model may need to download first (~2.4 GB, one time only)</div></div></div>`:sugs?renderSugs(sugs):`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click "Generate" for AI-powered recommendations based on team scores and feedback. The AI runs entirely in your browser — no account needed. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
+}
+
+function renderSugs(sugs){
+  const uc={immediate:{cls:'u-im',lbl:'🔥 Immediate'},['short-term']:{cls:'u-sh',lbl:'⚡ Short-term'},ongoing:{cls:'u-on',lbl:'🔄 Ongoing'}};
+  return sugs.map((s,i)=>{const u=uc[s.urgency]||uc.ongoing;return`<div class="sug" style="animation-delay:${i*.08}s"><div class="si">${s.icon||'💡'}</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;"><div class="st2">${s.title}</div><span class="utag ${u.cls}">${u.lbl}</span></div><div class="sd">${s.description}</div></div></div>`;}).join('');
+}
+
+/* ── ROUNDS ── */
+async function rRounds(tc){
+  const rounds=S.rounds,active=rounds.find(r=>r.status==='open');
+  const allM=[];for(const r of rounds){const m=await getMetrics(r.id);allM.push({r,m});}
+  tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Manage Rounds</div><div class="ss">Create and manage survey rounds</div></div></div>
+  ${!active?`<div class="acard" style="margin-bottom:20px;"><h3 style="font-size:16px;font-weight:700;color:var(--atxt);margin-bottom:16px;">Open a New Round</h3><div style="display:flex;gap:12px;flex-wrap:wrap;"><div style="flex:1;min-width:200px;"><label class="afl" for="rname">Round Name</label><input type="text" id="rname" class="afi" placeholder="e.g. April 2026"/></div><div style="flex:1;min-width:160px;"><label class="afl" for="rdate">Date</label><input type="date" id="rdate" class="afi" value="${new Date().toISOString().split('T')[0]}"/></div></div><button class="abtn abtn-ac" style="margin-top:16px;" onclick="createRound()">＋ Open New Round</button></div>`:`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--awk);display:flex;gap:10px;align-items:flex-start;margin-bottom:20px;">⚠️ <span>There is currently an <strong>open round</strong>: <strong>${active.name}</strong>. Close it before opening a new one.</span></div>`}
+  <div style="font-size:11px;font-weight:600;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;">All Rounds</div>
+  ${[...allM].reverse().map(({r,m})=>`<div class="rrow"><div style="flex:1;"><div class="rn">${r.name}</div><div class="rm">${r.isHist?'Historical data':m.n+' response'+(m.n!==1?'s':'')} · ${r.date?new Date(r.date).toLocaleDateString('en-GB',{month:'short',year:'numeric'}):''} · Composite: ${m.comp}/10</div></div><span class="rs ${r.status==='open'?'rs-o':r.isHist?'rs-h':'rs-c'}">${r.status==='open'?'● Live':r.isHist?'📚 Historical':'✓ Closed'}</span>${r.status==='open'?`<button class="abtn btn-sm" style="background:rgba(255,80,80,.15);color:var(--aer);border-color:rgba(255,80,80,.2);" onclick="closeRound('${r.id}')">Close Round</button>`:''}${!r.isHist?`<button class="abtn btn-sm" style="background:rgba(255,80,80,.08);color:var(--aer);border-color:rgba(255,80,80,.15);padding:8px 11px;" onclick="deleteRound('${r.id}')" title="Delete this round">🗑</button>`:''}</div>`).join('')}
+  </div>`;
+}
+
+/* ────────────────────────────────────────────
+   MAIN RENDER
+──────────────────────────────────────────── */
+async function render(){
+  const app=$id('app');
+  switch(S.view){
+    case'landing':         app.innerHTML=vLanding();    break;
+    case'name-entry':      app.innerHTML=vNameEntry();  break;
+    case'survey':          app.innerHTML=vSurvey();     break;
+    case'success':         app.innerHTML=vSuccess();    break;
+    case'admin-login':     app.innerHTML=vAdminLogin(); break;
+    case'admin-dashboard': await vAdminDash();          break;
+  }
+}
+
+/* ────────────────────────────────────────────
+   EVENT HANDLERS
+──────────────────────────────────────────── */
+function pickScore(q,v){
+  S.ans[q]=v;
+  document.querySelectorAll(`[onclick*="pickScore('${q}'"]`).forEach(b=>{b.classList.toggle('on',parseInt(b.textContent)===v);});
+  const done=(S.ans.q1>0?1:0)+(S.ans.q2>0?1:0)+(S.ans.q3>0?1:0);
+  const prg=$id('prg');
+  if(prg)prg.style.width=Math.min(100,done/3*45+((S.ans.q4||S.ans.q5||S.ans.q6||S.ans.q7||S.ans.q8)?55:0))+'%';
+}
+
+async function doName(){
+  const ni=$id('ni'),name=(ni?.value||'').trim();
+  const errEl=$id('nerr');
+  if(!name){if(errEl){errEl.style.display='flex';errEl.textContent='Please enter your first name to continue.';}return;}
+  S.name=name;
+  if(S.activeRound){
+    if(await submitted(S.activeRound.id,name)){
+      if(errEl){errEl.style.display='flex';errEl.innerHTML='<span>⚠️</span><span>It looks like you\'ve already submitted a response for this round. Each person can only submit once per survey.</span>';}
+      return;
+    }
+  }
+  nav('survey');
+}
+
+async function doSubmit(){
+  const a=S.ans;
+  if(!a.q1||!a.q2||!a.q3){
+    const el=$id('serr');
+    if(el){el.style.display='flex';el.innerHTML='<span>⚠️</span><span>Please answer all three rating questions (1–10) before submitting.</span>';}
+    return;
+  }
+  const btn=$id('subbtn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-sm"></span>Submitting…';}
+  const resp={id:Math.random().toString(36).slice(2),timestamp:new Date().toISOString(),scores:{q1:a.q1,q2:a.q2,q3:a.q3},comments:{q4:a.q4,q5:a.q5,q6:a.q6,q7:a.q7,q8:a.q8}};
+  if(S.activeRound){
+    await saveResp(S.activeRound.id,resp);
+    await addSub(S.activeRound.id,nh(S.name,S.activeRound.id));
+    // Update response count in Supabase
+    const idx=S.rounds.findIndex(r=>r.id===S.activeRound.id);
+    if(idx>=0){
+      S.rounds[idx].count=(S.rounds[idx].count||0)+1;
+      await supa(`rounds?id=eq.${S.activeRound.id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({count:S.rounds[idx].count})});
+    }
+  }
+  S.submitted={q1:a.q1,q2:a.q2,q3:a.q3};
+  S.ans={q1:0,q2:0,q3:0,q4:'',q5:'',q6:'',q7:'',q8:''};
+  S.name='';
+  nav('success');
+}
+
+function doLogin(){
+  const pw=$id('pwin')?.value||'',el=$id('lerr');
+  if(pw===PW){S.admin=true;nav('admin-dashboard');}
+  else{if(el)el.style.display='block';if($id('pwin')){$id('pwin').value='';$id('pwin').focus();}}
+}
+function doLogout(){S.admin=false;nav('landing');}
+
+function selCxR(v){S.selCx=v;const tc=$id('tc');if(tc)rComments(tc);}
+function selSugR(v){S.selSug=v;const tc=$id('tc');if(tc)rSuggestions(tc);}
+
+async function runCx(sid){
+  if(S.analysing)return;
+  S.analysing=true;
+  const tc=$id('tc');if(tc)await rComments(tc);
+  const result=await aiAnalyse(sid);
+  S.analysing=false;
+  if(result){S.cxCache[sid]=result;await saveAnalysis(sid,result);}
+  if(tc)await rComments(tc);
+}
+
+async function runSug(sid){
+  if(S.suggesting)return;
+  if(!S.cxCache[sid]){
+    const cached=await loadAnalysis(sid);
+    if(cached)S.cxCache[sid]=cached;
+    else{await runCx(sid);}
+  }
+  S.suggesting=true;
+  const tc=$id('tc');if(tc)await rSuggestions(tc);
+  const result=await aiSuggestions(sid);
+  S.suggesting=false;
+  if(result){S.sugCache[sid]=result;await saveSuggestions(sid,result);}
+  if(tc)await rSuggestions(tc);
+}
+
+async function createRound(){
+  const name=($id('rname')?.value||'').trim(),date=$id('rdate')?.value||new Date().toISOString().split('T')[0];
+  if(!name)return;
+  const id=name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+  const short=name.replace(/^(\w{3})\w+\s+(\d{2})(\d{2})$/,'$1 $3')||name.substring(0,8);
+  await supa('rounds',{method:'POST',headers:{'Prefer':'return=minimal'},
+    body:JSON.stringify({id,name,short,date,status:'open',is_hist:false,count:0})});
+  const nr={id,name,short,date,status:'open',isHist:false,count:0};
+  S.rounds.push(nr);S.activeRound=nr;
+  const tc=$id('tc');if(tc)await rRounds(tc);
+}
+
+async function closeRound(rid){
+  const resps=await loadResp(rid);
+  const updates={status:'closed'};
+  if(resps.length){
+    const n=resps.length;
+    updates.q1=+(resps.reduce((s,r)=>s+r.scores.q1,0)/n).toFixed(2);
+    updates.q2=+(resps.reduce((s,r)=>s+r.scores.q2,0)/n).toFixed(2);
+    updates.q3=+(resps.reduce((s,r)=>s+r.scores.q3,0)/n).toFixed(2);
+    updates.count=n;
+  }
+  await supa(`rounds?id=eq.${rid}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(updates)});
+  const idx=S.rounds.findIndex(r=>r.id===rid);
+  if(idx>=0)S.rounds[idx]={...S.rounds[idx],...updates};
+  S.activeRound=null;
+  const tc=$id('tc');if(tc)await rRounds(tc);
+}
+
+async function deleteRound(rid){
+  const r=S.rounds.find(x=>x.id===rid);
+  if(!r)return;
+  if(r.isHist){alert('Historical rounds cannot be deleted.');return;}
+  const isOpen=r.status==='open';
+  const msg=isOpen
+    ?`⚠️ "${r.name}" is currently LIVE.\n\nDeleting it will immediately end the survey and permanently remove all responses and data for this round.\n\nType DELETE to confirm.`
+    :`Delete "${r.name}"?\n\nThis will permanently remove the round and all its data. This cannot be undone.\n\nType DELETE to confirm.`;
+  const conf=window.prompt(msg);
+  if((conf||'').trim().toUpperCase()!=='DELETE')return;
+  // ON DELETE CASCADE in Supabase handles responses, submissions, caches
+  await supa(`rounds?id=eq.${rid}`,{method:'DELETE'});
+  S.rounds=S.rounds.filter(x=>x.id!==rid);
+  if(S.activeRound?.id===rid)S.activeRound=null;
+  delete S.cxCache[rid];delete S.sugCache[rid];
+  const tc=$id('tc');if(tc)await rRounds(tc);
+}
+
+/* ────────────────────────────────────────────
+   AI CALLS  (WebLLM — runs fully in-browser)
+──────────────────────────────────────────── */
+let llmEngine=null;
+
+function extractJSON(text){
+  try{return JSON.parse(text.trim());}catch(e){}
+  try{return JSON.parse(text.replace(/```json\n?|```\n?/g,'').trim());}catch(e){}
+  const om=text.match(/\{[\s\S]*\}/);if(om)try{return JSON.parse(om[0]);}catch(e){}
+  const am=text.match(/\[[\s\S]*\]/);if(am)try{return JSON.parse(am[0]);}catch(e){}
+  return null;
+}
+
+async function getEngine(onProgress){
+  if(llmEngine)return llmEngine;
+  const{CreateMLCEngine}=await import('https://esm.run/@mlc-ai/web-llm');
+  llmEngine=await CreateMLCEngine('Phi-3.5-mini-instruct-q4f16_1-MLC',{
+    initProgressCallback:(p)=>{if(onProgress)onProgress(p);}
+  });
+  return llmEngine;
+}
+
+function llmProgressHTML(p){
+  const pct=Math.round((p.progress||0)*100);
+  const isDownloading=(p.text||'').toLowerCase().includes('fetch')||(p.text||'').toLowerCase().includes('download');
+  return`<div class="lc" style="padding:36px 20px;text-align:center;">
+    <div style="max-width:320px;margin:0 auto;">
+      <div style="font-size:32px;margin-bottom:14px;">${isDownloading?'📥':'⚙️'}</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:var(--atxt);margin-bottom:6px;">${isDownloading?'Downloading AI model…':'Preparing AI model…'}</div>
+      <div style="font-size:12px;color:var(--atxt-md);margin-bottom:16px;line-height:1.5;">${isDownloading?'This is a one-time download (~2.4 GB). Once cached, analysis is instant.':'Setting up the model — almost ready…'}</div>
+      <div style="background:rgba(255,255,255,.08);border-radius:6px;height:8px;overflow:hidden;width:100%;">
+        <div style="background:linear-gradient(90deg,var(--aac),#36C97E);height:100%;border-radius:6px;width:${pct}%;transition:width .4s ease;"></div>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--atxt-dm);margin-top:8px;">${pct}%</div>
+    </div>
+  </div>`;
+}
+
+async function aiAnalyse(sid){
+  const r=S.rounds.find(x=>x.id===sid);
+  let cx;
+  if(r&&r.isHist){
+    const cxData=await loadCxData(sid);
+    if(cxData){cx={q4:cxData.q4.join('\n'),q5:cxData.q5.join('\n'),q6:cxData.q6.join('\n'),q7:cxData.q7.join('\n'),q8:cxData.q8.join('\n')};}
+  } else if(r){
+    const resps=await loadResp(sid);
+    if(!resps.length)return null;
+    cx={q4:resps.map(r=>r.comments.q4).filter(Boolean).join('\n'),q5:resps.map(r=>r.comments.q5).filter(Boolean).join('\n'),q6:resps.map(r=>r.comments.q6).filter(Boolean).join('\n'),q7:resps.map(r=>r.comments.q7).filter(Boolean).join('\n'),q8:resps.map(r=>r.comments.q8).filter(Boolean).join('\n')};
+  }
+  if(!cx)return null;
+  const prompt=`You are analysing anonymous team survey responses for a data analytics translation team. Study the responses and return a JSON analysis.
+
+Q4 - Satisfaction with team openness:
+${cx.q4||'(none)'}
+Q5 - Key activities that build connection:
+${cx.q5||'(none)'}
+Q6 - Why those activities are valuable:
+${cx.q6||'(none)'}
+Q7 - Suggestions to improve team bonding:
+${cx.q7||'(none)'}
+Q8 - Other thoughts:
+${cx.q8||'(none)'}
+
+You MUST respond with ONLY a valid JSON object. No prose, no markdown, no explanation before or after. The JSON must follow this exact structure:
+{"overallSentiment":"positive","overallSummary":"2-3 sentence summary of overall sentiment.","themes":[{"name":"Theme name","sentiment":"positive","summary":"2-3 sentence description."}]}
+Sentiment values must be exactly: positive, neutral, or negative.
+Identify exactly 4 to 6 distinct themes.`;
+  try{
+    const resEl=$id('cxres');
+    const engine=await getEngine((p)=>{if(resEl)resEl.innerHTML=llmProgressHTML(p);});
+    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Analysing responses…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Running sentiment analysis</div></div></div>`;
+    const response=await engine.chat.completions.create({messages:[{role:'user',content:prompt}],max_tokens:1000,temperature:0.3});
+    const text=response.choices[0].message.content||'';
+    const result=extractJSON(text);
+    if(!result)throw new Error('Could not parse JSON from model output');
+    return result;
+  }catch(e){console.error('Analysis error:',e);return null;}
+}
+
+async function aiSuggestions(sid){
+  const m=await getMetrics(sid),r=S.rounds.find(x=>x.id===sid);
+  const analysis=S.cxCache[sid];
+  const themes=analysis?.themes?.map(t=>`- ${t.name} (${t.sentiment}): ${t.summary}`).join('\n')||'No theme data available';
+  const prompt=`You are an expert in team dynamics advising the lead of "${APP}", a data analytics translation team. Based on the survey data below, generate 5 actionable recommendations.
+
+Survey results for ${r?.name||'this round'}:
+- Q1 Connectedness: ${m.q1}/10
+- Q2 Comfort reaching out: ${m.q2}/10
+- Q3 Open communication: ${m.q3}/10
+- Composite: ${m.comp}/10
+- Overall sentiment: ${analysis?.overallSentiment||'unknown'}
+
+Key themes from feedback:
+${themes}
+
+You MUST respond with ONLY a valid JSON array. No prose, no markdown, no explanation. The JSON must follow this exact structure:
+[{"title":"Short action title","description":"2-3 sentence explanation of what to do and why.","urgency":"immediate","icon":"🎯"}]
+The urgency field must be exactly one of: immediate, short-term, or ongoing.
+Provide exactly 5 items.`;
+  try{
+    const resEl=$id('sugres');
+    const engine=await getEngine((p)=>{if(resEl)resEl.innerHTML=llmProgressHTML(p);});
+    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Analysing scores and themes</div></div></div>`;
+    const response=await engine.chat.completions.create({messages:[{role:'user',content:prompt}],max_tokens:1000,temperature:0.3});
+    const text=response.choices[0].message.content||'';
+    const result=extractJSON(text);
+    if(!result)throw new Error('Could not parse JSON from model output');
+    return result;
+  }catch(e){console.error('Suggestions error:',e);return null;}
+}
+
+/* ────────────────────────────────────────────
+   INIT
+──────────────────────────────────────────── */
+async function init(){
+  try{
+    await initData();
+    S.view='landing';
+    await render();
+  }catch(e){
+    console.error('Init error:',e);
+    document.getElementById('app').innerHTML=`
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--cream);padding:20px;">
+        <div style="text-align:center;max-width:400px;">
+          <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+          <h2 style="font-family:'Outfit',sans-serif;color:var(--navy);margin-bottom:8px;">Connection Error</h2>
+          <p style="color:var(--txt-md);font-size:14px;line-height:1.65;">Could not connect to the database. Please check your internet connection and try refreshing the page.</p>
+          <button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Retry</button>
+        </div>
+      </div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
