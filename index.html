@@ -211,8 +211,10 @@ const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
    SUPABASE HELPER
 ──────────────────────────────────────────── */
 async function supa(path, options={}){
+  const isGet=!(options.method&&options.method.toUpperCase()!=='GET');
   const res=await fetch(`${SUPA_URL}/rest/v1/${path}`,{
     ...options,
+    cache:isGet?'no-store':'default',
     headers:{
       'apikey':SUPA_KEY,
       'Authorization':`Bearer ${SUPA_KEY}`,
@@ -601,6 +603,7 @@ function renderSugs(sugs){
 
 /* ── ROUNDS ── */
 async function rRounds(tc){
+  await refreshRounds();
   const rounds=S.rounds,active=rounds.find(r=>r.status==='open');
   const allM=[];for(const r of rounds){const m=await getMetrics(r.id);allM.push({r,m});}
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Manage Rounds</div><div class="ss">Create and manage survey rounds</div></div></div>
@@ -825,7 +828,7 @@ async function callGroq(prompt){
       model:'llama-3.3-70b-versatile',
       messages:[{role:'user',content:prompt}],
       temperature:0.3,
-      max_tokens:1024
+      max_tokens:2048
     })
   });
   if(!res.ok){
