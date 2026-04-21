@@ -205,7 +205,7 @@ h1,h2,h3,h4{font-family:'Outfit',sans-serif;line-height:1.2}
 ──────────────────────────────────────────── */
 const PW='admin9469', APP='Analytics Translation';
 const SUPA_URL='https://whmktjyikdtxtjhrqfmg.supabase.co';
-const SUPA_KEY='sb_publishable_GDXEVCW5MGK96mbhSZpojg_97-_VP-E';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndobWt0anlpa2R0eHRqaHJxZm1nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MjU2MTAsImV4cCI6MjA5MjMwMTYxMH0.VAiP9M5YJq4C8bUvt2ZwjSUAkNvcN4djYNRKXcOj-e8';
 
 /* ────────────────────────────────────────────
    SUPABASE HELPER
@@ -292,6 +292,22 @@ async function initData(){
     q1:parseFloat(r.q1)||0,q2:parseFloat(r.q2)||0,q3:parseFloat(r.q3)||0,count:r.count||0
   }));
   S.activeRound=S.rounds.find(r=>r.status==='open')||null;
+}
+
+// Re-fetch rounds from Supabase — called when admin dashboard opens to ensure
+// any rounds created on other devices are visible immediately.
+async function refreshRounds(){
+  try{
+    const rows=await supa('rounds?select=*&order=date.asc');
+    if(rows&&rows.length){
+      S.rounds=(rows||[]).map(r=>({
+        id:r.id,name:r.name,short:r.short,date:r.date,
+        status:r.status,isHist:r.is_hist,label:r.label,
+        q1:parseFloat(r.q1)||0,q2:parseFloat(r.q2)||0,q3:parseFloat(r.q3)||0,count:r.count||0
+      }));
+      S.activeRound=S.rounds.find(r=>r.status==='open')||null;
+    }
+  }catch(e){console.warn('refreshRounds failed:',e);}
 }
 
 async function loadResp(rid){
@@ -424,7 +440,7 @@ function vAdminLogin(){
 async function vAdminDash(){
   const app=$id('app');
   app.innerHTML=`<div class="ap" id="adp">
-    <div class="atb"><div class="atb-in"><div class="alw"><div class="alm">AT</div><div><div class="aln">${APP}</div><div class="als">Admin Dashboard</div></div></div><div style="display:flex;align-items:center;gap:10px;"><span class="apill">🔐 Admin</span><button class="alo" onclick="doLogout()">Log out</button></div></div></div>
+    <div class="atb"><div class="atb-in"><div class="alw"><div class="alm">AT</div><div><div class="aln">${APP}</div><div class="als">Admin Dashboard</div></div></div><div style="display:flex;align-items:center;gap:10px;"><span class="apill">🔐 Admin</span><button class="alo" onclick="adminRefresh()" title="Refresh all data from database">↻ Refresh</button><button class="alo" onclick="doLogout()">Log out</button></div></div></div>
     <nav class="tstrip"><div class="tsi">
       <button class="tab${S.tab==='overview'?' on':''}" data-tab="overview" onclick="switchTab('overview')">📊 Overview</button>
       <button class="tab${S.tab==='trends'?' on':''}" data-tab="trends" onclick="switchTab('trends')">📈 Trends</button>
@@ -434,6 +450,9 @@ async function vAdminDash(){
     </div></nav>
     <div id="tc" class="tc"><div class="lc"><div class="spinner"></div><span style="font-size:14px;">Loading…</span></div></div>
   </div>`;
+  // Always refresh rounds from Supabase when admin opens dashboard
+  // This ensures rounds created on other devices are immediately visible
+  await refreshRounds();
   await rTab(S.tab);
 }
 
@@ -524,8 +543,14 @@ async function rComments(tc){
 function renderCx(a,sid){
   const cfg={positive:{bc:'sb-p',cc:'cl-p',bd:'cb-p',lbl:'Positive',ico:'😊'},neutral:{bc:'sb-n',cc:'cl-n',bd:'cb-n',lbl:'Mixed / Neutral',ico:'😐'},negative:{bc:'sb-b',cc:'cl-b',bd:'cb-b',lbl:'Concerns Detected',ico:'😟'}};
   const oc=cfg[a.overallSentiment]||cfg.neutral;
+  // Show a note if some respondents didn't leave comments
+  let coverageNote='';
+  if(a._totalRespondents&&a._respondentsWithComments&&a._respondentsWithComments<a._totalRespondents){
+    const silent=a._totalRespondents-a._respondentsWithComments;
+    coverageNote=`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--awk);margin-bottom:14px;">ℹ️ Analysis based on <strong>${a._respondentsWithComments} of ${a._totalRespondents}</strong> respondents who provided written comments. ${silent} respondent${silent!==1?'s':''} submitted scores only.</div>`;
+  }
   const rawBtn=`<button class="abtn btn-sm" onclick="toggleRaw('${sid}')" style="margin-top:16px;">📋 View Individual Responses</button><div id="raw-${sid}" style="display:none;margin-top:14px;"></div>`;
-  return`<div class="sbanner ${oc.bc}"><div class="sem-ico">${oc.ico}</div><div><div class="sem-t">${oc.lbl}</div><div class="sem-s">${a.overallSummary}</div></div></div>
+  return`${coverageNote}<div class="sbanner ${oc.bc}"><div class="sem-ico">${oc.ico}</div><div><div class="sem-t">${oc.lbl}</div><div class="sem-s">${a.overallSummary}</div></div></div>
   <div style="font-size:11px;font-weight:600;color:var(--atxt-md);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Key Themes</div>
   ${(a.themes||[]).map((t,i)=>{const tc2=cfg[t.sentiment]||cfg.neutral;return`<div class="cluster ${tc2.cc}" style="animation-delay:${i*.07}s"><div class="ch"><div class="cn">${t.name}</div><span class="cbadge ${tc2.bd}">${t.sentiment}</span></div><div class="ct">${t.summary}</div></div>`;}).join('')}
   ${rawBtn}`;
@@ -548,7 +573,13 @@ async function toggleRaw(sid){
   } else if(r){
     const resps=await loadResp(sid);
     if(!resps.length){html=`<div style="color:var(--atxt-md);font-size:13px;padding:12px;">No responses yet.</div>`;}
-    else html=resps.map((resp,i)=>`<div class="resp-card"><div style="font-size:11px;color:var(--atxt-dm);margin-bottom:10px;">Response ${i+1} · ${new Date(resp.timestamp).toLocaleDateString('en-GB')}</div><div class="resp-scores"><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q1)}">${resp.scores.q1}</div><div class="resp-sl">Connectedness</div></div><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q2)}">${resp.scores.q2}</div><div class="resp-sl">Reach Out</div></div><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q3)}">${resp.scores.q3}</div><div class="resp-sl">Openness</div></div></div>${Object.entries({q4:'Openness',q5:'Activities',q6:'Why Valuable',q7:'Improvements',q8:'Other'}).map(([k,lbl])=>resp.comments[k]?`<div class="resp-qa"><span class="resp-ql">${lbl}:</span>${resp.comments[k]}</div>`:'').join('')}</div>`).join('');
+    else html=resps.map((resp,i)=>{
+      const hasComments=Object.entries({q4:'Openness',q5:'Activities',q6:'Why Valuable',q7:'Improvements',q8:'Other'}).some(([k])=>(resp.comments[k]||'').trim());
+      const commentHtml=hasComments
+        ?Object.entries({q4:'Openness',q5:'Activities',q6:'Why Valuable',q7:'Improvements',q8:'Other'}).map(([k,lbl])=>(resp.comments[k]||'').trim()?`<div class="resp-qa"><span class="resp-ql">${lbl}:</span>${resp.comments[k]}</div>`:'').join('')
+        :`<div style="font-size:12px;color:var(--atxt-dm);font-style:italic;margin-top:4px;">No written comments — scores only.</div>`;
+      return`<div class="resp-card"><div style="font-size:11px;color:var(--atxt-dm);margin-bottom:10px;">Response ${i+1} · ${new Date(resp.timestamp).toLocaleDateString('en-GB')}</div><div class="resp-scores"><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q1)}">${resp.scores.q1}</div><div class="resp-sl">Connectedness</div></div><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q2)}">${resp.scores.q2}</div><div class="resp-sl">Reach Out</div></div><div class="resp-s"><div class="resp-sv" style="color:${sc(resp.scores.q3)}">${resp.scores.q3}</div><div class="resp-sl">Openness</div></div></div>${commentHtml}</div>`;
+    }).join('');
   }
   el.innerHTML=html||`<div style="color:var(--atxt-md);font-size:13px;padding:12px;">No data available.</div>`;
 }
@@ -629,20 +660,27 @@ async function doSubmit(){
   const btn=$id('subbtn');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin-sm"></span>Submitting…';}
   const resp={id:Math.random().toString(36).slice(2),timestamp:new Date().toISOString(),scores:{q1:a.q1,q2:a.q2,q3:a.q3},comments:{q4:a.q4,q5:a.q5,q6:a.q6,q7:a.q7,q8:a.q8}};
-  if(S.activeRound){
-    await saveResp(S.activeRound.id,resp);
-    await addSub(S.activeRound.id,nh(S.name,S.activeRound.id));
-    // Update response count in Supabase
-    const idx=S.rounds.findIndex(r=>r.id===S.activeRound.id);
-    if(idx>=0){
-      S.rounds[idx].count=(S.rounds[idx].count||0)+1;
-      await supa(`rounds?id=eq.${S.activeRound.id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({count:S.rounds[idx].count})});
+  try{
+    if(S.activeRound){
+      await saveResp(S.activeRound.id,resp);
+      await addSub(S.activeRound.id,nh(S.name,S.activeRound.id));
+      // Update response count in Supabase
+      const idx=S.rounds.findIndex(r=>r.id===S.activeRound.id);
+      if(idx>=0){
+        S.rounds[idx].count=(S.rounds[idx].count||0)+1;
+        await supa(`rounds?id=eq.${S.activeRound.id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({count:S.rounds[idx].count})});
+      }
     }
+    S.submitted={q1:a.q1,q2:a.q2,q3:a.q3};
+    S.ans={q1:0,q2:0,q3:0,q4:'',q5:'',q6:'',q7:'',q8:''};
+    S.name='';
+    nav('success');
+  }catch(e){
+    console.error('Submit error:',e);
+    if(btn){btn.disabled=false;btn.innerHTML='Submit Survey ✓';}
+    const el=$id('serr');
+    if(el){el.style.display='flex';el.innerHTML='<span>⚠️</span><span>There was a problem saving your response. Please check your connection and try again.</span>';}
   }
-  S.submitted={q1:a.q1,q2:a.q2,q3:a.q3};
-  S.ans={q1:0,q2:0,q3:0,q4:'',q5:'',q6:'',q7:'',q8:''};
-  S.name='';
-  nav('success');
 }
 
 function doLogin(){
@@ -651,6 +689,13 @@ function doLogin(){
   else{if(el)el.style.display='block';if($id('pwin')){$id('pwin').value='';$id('pwin').focus();}}
 }
 function doLogout(){S.admin=false;nav('landing');}
+
+async function adminRefresh(){
+  await refreshRounds();
+  // Clear in-memory caches so fresh data is loaded from Supabase
+  S.cxCache={};S.sugCache={};
+  const tc=$id('tc');if(tc)await rTab(S.tab);
+}
 
 function selCxR(v){S.selCx=v;const tc=$id('tc');if(tc)rComments(tc);}
 function selSugR(v){S.selSug=v;const tc=$id('tc');if(tc)rSuggestions(tc);}
@@ -796,16 +841,45 @@ async function callGroq(prompt){
 async function aiAnalyse(sid){
   const r=S.rounds.find(x=>x.id===sid);
   let cx;
+  let totalRespondents=0;
+  let respondentsWithComments=0;
   if(r&&r.isHist){
     const cxData=await loadCxData(sid);
-    if(cxData){cx={q4:cxData.q4.join('\n'),q5:cxData.q5.join('\n'),q6:cxData.q6.join('\n'),q7:cxData.q7.join('\n'),q8:cxData.q8.join('\n')};}
+    if(cxData){
+      totalRespondents=r.count||0;
+      respondentsWithComments=cxData.q4?cxData.q4.filter(Boolean).length:0;
+      cx={q4:cxData.q4.join('\n'),q5:cxData.q5.join('\n'),q6:cxData.q6.join('\n'),q7:cxData.q7.join('\n'),q8:cxData.q8.join('\n')};
+    }
   } else if(r){
     const resps=await loadResp(sid);
     if(!resps.length)return null;
-    cx={q4:resps.map(r=>r.comments.q4).filter(Boolean).join('\n'),q5:resps.map(r=>r.comments.q5).filter(Boolean).join('\n'),q6:resps.map(r=>r.comments.q6).filter(Boolean).join('\n'),q7:resps.map(r=>r.comments.q7).filter(Boolean).join('\n'),q8:resps.map(r=>r.comments.q8).filter(Boolean).join('\n')};
+    totalRespondents=resps.length;
+    // Count respondents who left at least one comment
+    respondentsWithComments=resps.filter(resp=>
+      (resp.comments.q4||'').trim()||(resp.comments.q5||'').trim()||
+      (resp.comments.q6||'').trim()||(resp.comments.q7||'').trim()||(resp.comments.q8||'').trim()
+    ).length;
+    cx={
+      q4:resps.map(r=>r.comments.q4).filter(Boolean).join('\n'),
+      q5:resps.map(r=>r.comments.q5).filter(Boolean).join('\n'),
+      q6:resps.map(r=>r.comments.q6).filter(Boolean).join('\n'),
+      q7:resps.map(r=>r.comments.q7).filter(Boolean).join('\n'),
+      q8:resps.map(r=>r.comments.q8).filter(Boolean).join('\n')
+    };
   }
   if(!cx)return null;
+  // If nobody left comments, we can't run analysis
+  if(!respondentsWithComments){
+    const resEl=$id('cxres');
+    if(resEl)resEl.innerHTML=`<div class="empty"><div class="ei">💬</div><div class="et">No comments to analyse</div><div class="es">${totalRespondents} respondent${totalRespondents!==1?'s':''} submitted scores but no comment responses were provided.</div></div>`;
+    return null;
+  }
+  const respondentNote=respondentsWithComments<totalRespondents
+    ?`Note: ${totalRespondents} total respondents, ${respondentsWithComments} provided comments (${totalRespondents-respondentsWithComments} submitted scores only).`
+    :`All ${totalRespondents} respondents provided comments.`;
   const prompt=`You are analysing anonymous team survey responses for a data analytics translation team. Study the responses and return a JSON analysis.
+
+${respondentNote}
 
 Q4 - Satisfaction with team openness:
 ${cx.q4||'(none)'}
@@ -827,6 +901,9 @@ Sentiment values must be exactly: positive, neutral, or negative. Identify exact
     const text=await callGroq(prompt);
     const result=extractJSON(text);
     if(!result)throw new Error('Could not parse JSON from response');
+    // Attach respondent counts to result so the UI can show coverage info
+    result._totalRespondents=totalRespondents;
+    result._respondentsWithComments=respondentsWithComments;
     return result;
   }catch(e){
     console.error('Analysis error:',e);
