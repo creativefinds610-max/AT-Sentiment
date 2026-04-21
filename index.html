@@ -518,7 +518,7 @@ async function rComments(tc){
   if(!S.cxCache[sid]){const cached=await loadAnalysis(sid);if(cached)S.cxCache[sid]=cached;}
   const analysis=S.cxCache[sid];
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Comment Analysis</div><div class="ss">AI-powered clustering and sentiment analysis of open responses</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selCxR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runCx('${sid}')">${S.analysing?'<span class="spin-sm"></span>Analysing…':'🤖 Analyse'}</button></div></div>
-  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">The AI model may need to download first (~2.4 GB, one time only)</div></div></div>`:analysis?renderCx(analysis,sid):`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click "Analyse" to run AI-powered theme clustering and sentiment analysis. The AI model runs entirely in your browser — no account needed. First use downloads the model (~2.4 GB).</div></div>`}</div></div>`;
+  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Claude API…</div></div></div>`:!getApiKey()?apiKeyBanner('cxres'):analysis?renderCx(analysis,sid):`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click \"Analyse\" to run AI-powered theme clustering and sentiment analysis using Claude.</div></div>`}</div></div>`;
 }
 
 function renderCx(a,sid){
@@ -560,7 +560,7 @@ async function rSuggestions(tc){
   if(!S.sugCache[sid]){const cached=await loadSuggestions(sid);if(cached)S.sugCache[sid]=cached;}
   const sugs=S.sugCache[sid];
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">AI Suggestions</div><div class="ss">Actionable recommendations based on scores and team feedback</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selSugR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runSug('${sid}')">${S.suggesting?'<span class="spin-sm"></span>Generating…':'✨ Generate'}</button></div></div>
-  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">The AI model may need to download first (~2.4 GB, one time only)</div></div></div>`:sugs?renderSugs(sugs):`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click "Generate" for AI-powered recommendations based on team scores and feedback. The AI runs entirely in your browser — no account needed. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
+  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Claude API…</div></div></div>`:!getApiKey()?apiKeyBanner('sugres'):sugs?renderSugs(sugs):`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click \"Generate\" for AI-powered recommendations. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
 }
 
 function renderSugs(sugs){
@@ -728,9 +728,39 @@ async function deleteRound(rid){
 }
 
 /* ────────────────────────────────────────────
-   AI CALLS  (WebLLM — runs fully in-browser)
+   AI CALLS  (Anthropic API — claude-sonnet-4-20250514)
 ──────────────────────────────────────────── */
-let llmEngine=null;
+
+// API key stored in memory for this session only — never persisted
+let _apiKey='';
+
+function getApiKey(){return _apiKey;}
+
+function setApiKey(k){_apiKey=(k||'').trim();}
+
+function apiKeyBanner(targetEl){
+  return`<div style="background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);border-radius:14px;padding:24px;margin-bottom:4px;">
+    <div style="font-size:24px;margin-bottom:12px;">🤖</div>
+    <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:var(--atxt);margin-bottom:6px;">Anthropic API Key Required</div>
+    <div style="font-size:13px;color:var(--atxt-md);line-height:1.65;margin-bottom:16px;">AI analysis uses Claude via the Anthropic API. Enter your API key below — it's kept in memory for this session only and never stored anywhere.<br><br>Don't have a key? Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--aac);">console.anthropic.com</a></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-…" style="flex:1;min-width:220px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid var(--abrd);color:var(--atxt);font-size:14px;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter')saveApiKey('${targetEl}')"/>
+      <button class="abtn abtn-ac" onclick="saveApiKey('${targetEl}')">Save &amp; Continue →</button>
+    </div>
+    <div id="apikeyerr" style="display:none;margin-top:10px;font-size:12px;color:var(--aer);"></div>
+  </div>`;
+}
+
+function saveApiKey(targetEl){
+  const val=($id('apiKeyInput')?.value||'').trim();
+  const err=$id('apikeyerr');
+  if(!val.startsWith('sk-ant-')){if(err){err.style.display='block';err.textContent='That doesn\'t look like a valid Anthropic API key (should start with sk-ant-).';}return;}
+  setApiKey(val);
+  // Re-run whichever tab triggered this
+  const tc=$id('tc');
+  if(targetEl==='cxres')rComments(tc);
+  else if(targetEl==='sugres')rSuggestions(tc);
+}
 
 function extractJSON(text){
   try{return JSON.parse(text.trim());}catch(e){}
@@ -740,29 +770,27 @@ function extractJSON(text){
   return null;
 }
 
-async function getEngine(onProgress){
-  if(llmEngine)return llmEngine;
-  const{CreateMLCEngine}=await import('https://esm.run/@mlc-ai/web-llm');
-  llmEngine=await CreateMLCEngine('Phi-3.5-mini-instruct-q4f16_1-MLC',{
-    initProgressCallback:(p)=>{if(onProgress)onProgress(p);}
+async function callClaude(prompt){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'x-api-key':getApiKey(),
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true',
+      'content-type':'application/json'
+    },
+    body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',
+      max_tokens:1024,
+      messages:[{role:'user',content:prompt}]
+    })
   });
-  return llmEngine;
-}
-
-function llmProgressHTML(p){
-  const pct=Math.round((p.progress||0)*100);
-  const isDownloading=(p.text||'').toLowerCase().includes('fetch')||(p.text||'').toLowerCase().includes('download');
-  return`<div class="lc" style="padding:36px 20px;text-align:center;">
-    <div style="max-width:320px;margin:0 auto;">
-      <div style="font-size:32px;margin-bottom:14px;">${isDownloading?'📥':'⚙️'}</div>
-      <div style="font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:var(--atxt);margin-bottom:6px;">${isDownloading?'Downloading AI model…':'Preparing AI model…'}</div>
-      <div style="font-size:12px;color:var(--atxt-md);margin-bottom:16px;line-height:1.5;">${isDownloading?'This is a one-time download (~2.4 GB). Once cached, analysis is instant.':'Setting up the model — almost ready…'}</div>
-      <div style="background:rgba(255,255,255,.08);border-radius:6px;height:8px;overflow:hidden;width:100%;">
-        <div style="background:linear-gradient(90deg,var(--aac),#36C97E);height:100%;border-radius:6px;width:${pct}%;transition:width .4s ease;"></div>
-      </div>
-      <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--atxt-dm);margin-top:8px;">${pct}%</div>
-    </div>
-  </div>`;
+  if(!res.ok){
+    const e=await res.text();
+    throw new Error(`API ${res.status}: ${e}`);
+  }
+  const data=await res.json();
+  return data.content?.[0]?.text||'';
 }
 
 async function aiAnalyse(sid){
@@ -790,27 +818,32 @@ ${cx.q7||'(none)'}
 Q8 - Other thoughts:
 ${cx.q8||'(none)'}
 
-You MUST respond with ONLY a valid JSON object. No prose, no markdown, no explanation before or after. The JSON must follow this exact structure:
-{"overallSentiment":"positive","overallSummary":"2-3 sentence summary of overall sentiment.","themes":[{"name":"Theme name","sentiment":"positive","summary":"2-3 sentence description."}]}
-Sentiment values must be exactly: positive, neutral, or negative.
-Identify exactly 4 to 6 distinct themes.`;
+Respond with ONLY a valid JSON object, no prose or markdown. Use this exact structure:
+{"overallSentiment":"positive","overallSummary":"2-3 sentence summary.","themes":[{"name":"Theme name","sentiment":"positive","summary":"2-3 sentence description."}]}
+Sentiment values must be exactly: positive, neutral, or negative. Identify exactly 4 to 6 distinct themes.`;
   try{
     const resEl=$id('cxres');
-    const engine=await getEngine((p)=>{if(resEl)resEl.innerHTML=llmProgressHTML(p);});
-    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Analysing responses…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Running sentiment analysis</div></div></div>`;
-    const response=await engine.chat.completions.create({messages:[{role:'user',content:prompt}],max_tokens:1000,temperature:0.3});
-    const text=response.choices[0].message.content||'';
+    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Analysing responses…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Running sentiment analysis with Claude</div></div></div>`;
+    const text=await callClaude(prompt);
     const result=extractJSON(text);
-    if(!result)throw new Error('Could not parse JSON from model output');
+    if(!result)throw new Error('Could not parse JSON from response');
     return result;
-  }catch(e){console.error('Analysis error:',e);return null;}
+  }catch(e){
+    console.error('Analysis error:',e);
+    const resEl=$id('cxres');
+    if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
+      <strong>Analysis failed.</strong><br>${e.message.includes('401')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
+      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rComments($id('tc'))">Re-enter API Key</button>
+    </div>`;
+    return null;
+  }
 }
 
 async function aiSuggestions(sid){
   const m=await getMetrics(sid),r=S.rounds.find(x=>x.id===sid);
   const analysis=S.cxCache[sid];
   const themes=analysis?.themes?.map(t=>`- ${t.name} (${t.sentiment}): ${t.summary}`).join('\n')||'No theme data available';
-  const prompt=`You are an expert in team dynamics advising the lead of "${APP}", a data analytics translation team. Based on the survey data below, generate 5 actionable recommendations.
+  const prompt=`You are an expert in team dynamics advising the lead of "${APP}", a data analytics translation team. Generate 5 actionable recommendations based on the survey data below.
 
 Survey results for ${r?.name||'this round'}:
 - Q1 Connectedness: ${m.q1}/10
@@ -822,20 +855,25 @@ Survey results for ${r?.name||'this round'}:
 Key themes from feedback:
 ${themes}
 
-You MUST respond with ONLY a valid JSON array. No prose, no markdown, no explanation. The JSON must follow this exact structure:
-[{"title":"Short action title","description":"2-3 sentence explanation of what to do and why.","urgency":"immediate","icon":"🎯"}]
-The urgency field must be exactly one of: immediate, short-term, or ongoing.
-Provide exactly 5 items.`;
+Respond with ONLY a valid JSON array, no prose or markdown. Use this exact structure:
+[{"title":"Short action title","description":"2-3 sentence explanation.","urgency":"immediate","icon":"🎯"}]
+The urgency field must be exactly one of: immediate, short-term, or ongoing. Provide exactly 5 items.`;
   try{
     const resEl=$id('sugres');
-    const engine=await getEngine((p)=>{if(resEl)resEl.innerHTML=llmProgressHTML(p);});
-    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Analysing scores and themes</div></div></div>`;
-    const response=await engine.chat.completions.create({messages:[{role:'user',content:prompt}],max_tokens:1000,temperature:0.3});
-    const text=response.choices[0].message.content||'';
+    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Analysing scores and themes with Claude</div></div></div>`;
+    const text=await callClaude(prompt);
     const result=extractJSON(text);
-    if(!result)throw new Error('Could not parse JSON from model output');
+    if(!result)throw new Error('Could not parse JSON from response');
     return result;
-  }catch(e){console.error('Suggestions error:',e);return null;}
+  }catch(e){
+    console.error('Suggestions error:',e);
+    const resEl=$id('sugres');
+    if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
+      <strong>Generation failed.</strong><br>${e.message.includes('401')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
+      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rSuggestions($id('tc'))">Re-enter API Key</button>
+    </div>`;
+    return null;
+  }
 }
 
 /* ────────────────────────────────────────────
