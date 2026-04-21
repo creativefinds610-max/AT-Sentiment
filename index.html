@@ -770,7 +770,7 @@ function extractJSON(text){
 }
 
 async function callGemini(prompt){
-  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${getApiKey()}`,{
     method:'POST',
     headers:{'content-type':'application/json'},
     body:JSON.stringify({
@@ -779,8 +779,10 @@ async function callGemini(prompt){
     })
   });
   if(!res.ok){
-    const e=await res.text();
-    throw new Error(`API ${res.status}: ${e}`);
+    let errMsg='';
+    try{const e=await res.json();errMsg=e?.error?.message||JSON.stringify(e);}
+    catch(x){errMsg=await res.text();}
+    throw new Error(`API ${res.status}: ${errMsg}`);
   }
   const data=await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
@@ -825,7 +827,7 @@ Sentiment values must be exactly: positive, neutral, or negative. Identify exact
     console.error('Analysis error:',e);
     const resEl=$id('cxres');
     if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
-      <strong>Analysis failed.</strong><br>${e.message.includes('400')||e.message.includes('401')||e.message.includes('403')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
+      <strong>Analysis failed.</strong><br>${e.message.includes('API_KEY_INVALID')||e.message.includes('401')||e.message.includes('403')?'Invalid API key — please check and try again.':(e.message.includes('429')||e.message.includes('RESOURCE_EXHAUSTED'))?`Rate limit hit. Wait 60 seconds and try again, or check your key at aistudio.google.com/apikey.<br><small style="opacity:.7">${e.message}</small>`:e.message}
       <br><br><button class="abtn btn-sm" onclick="setApiKey('');rComments(document.getElementById('tc'))">Re-enter API Key</button>
     </div>`;
     return null;
@@ -862,7 +864,7 @@ The urgency field must be exactly one of: immediate, short-term, or ongoing. Pro
     console.error('Suggestions error:',e);
     const resEl=$id('sugres');
     if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
-      <strong>Generation failed.</strong><br>${e.message.includes('400')||e.message.includes('401')||e.message.includes('403')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
+      <strong>Generation failed.</strong><br>${e.message.includes('API_KEY_INVALID')||e.message.includes('401')||e.message.includes('403')?'Invalid API key — please check and try again.':(e.message.includes('429')||e.message.includes('RESOURCE_EXHAUSTED'))?`Rate limit hit. Wait 60 seconds and try again, or check your key at aistudio.google.com/apikey.<br><small style="opacity:.7">${e.message}</small>`:e.message}
       <br><br><button class="abtn btn-sm" onclick="setApiKey('');rSuggestions(document.getElementById('tc'))">Re-enter API Key</button>
     </div>`;
     return null;
