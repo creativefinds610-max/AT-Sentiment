@@ -728,7 +728,7 @@ async function deleteRound(rid){
 }
 
 /* ────────────────────────────────────────────
-   AI CALLS  (Anthropic API — claude-sonnet-4-20250514)
+   AI CALLS  (Google Gemini API — free tier)
 ──────────────────────────────────────────── */
 
 // API key stored in memory for this session only — never persisted
@@ -741,10 +741,10 @@ function setApiKey(k){_apiKey=(k||'').trim();}
 function apiKeyBanner(targetEl){
   return`<div style="background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.2);border-radius:14px;padding:24px;margin-bottom:4px;">
     <div style="font-size:24px;margin-bottom:12px;">🤖</div>
-    <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:var(--atxt);margin-bottom:6px;">Anthropic API Key Required</div>
-    <div style="font-size:13px;color:var(--atxt-md);line-height:1.65;margin-bottom:16px;">AI analysis uses Claude via the Anthropic API. Enter your API key below — it's kept in memory for this session only and never stored anywhere.<br><br>Don't have a key? Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--aac);">console.anthropic.com</a></div>
+    <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:var(--atxt);margin-bottom:6px;">Google Gemini API Key Required</div>
+    <div style="font-size:13px;color:var(--atxt-md);line-height:1.65;margin-bottom:16px;">AI analysis uses Google Gemini (free tier — no credit card needed). Enter your API key below — it's kept in memory for this session only and never stored anywhere.<br><br>Don't have a key? Get one free in under a minute at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--aac);">aistudio.google.com/apikey</a></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-…" style="flex:1;min-width:220px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid var(--abrd);color:var(--atxt);font-size:14px;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter')saveApiKey('${targetEl}')"/>
+      <input type="password" id="apiKeyInput" placeholder="AIza…" style="flex:1;min-width:220px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid var(--abrd);color:var(--atxt);font-size:14px;font-family:'DM Mono',monospace;" onkeydown="if(event.key==='Enter')saveApiKey('${targetEl}')"/>
       <button class="abtn abtn-ac" onclick="saveApiKey('${targetEl}')">Save &amp; Continue →</button>
     </div>
     <div id="apikeyerr" style="display:none;margin-top:10px;font-size:12px;color:var(--aer);"></div>
@@ -754,9 +754,8 @@ function apiKeyBanner(targetEl){
 function saveApiKey(targetEl){
   const val=($id('apiKeyInput')?.value||'').trim();
   const err=$id('apikeyerr');
-  if(!val.startsWith('sk-ant-')){if(err){err.style.display='block';err.textContent='That doesn\'t look like a valid Anthropic API key (should start with sk-ant-).';}return;}
+  if(val.length<20){if(err){err.style.display='block';err.textContent='That doesn\'t look like a valid API key — it should be a long string starting with AIza.';}return;}
   setApiKey(val);
-  // Re-run whichever tab triggered this
   const tc=$id('tc');
   if(targetEl==='cxres')rComments(tc);
   else if(targetEl==='sugres')rSuggestions(tc);
@@ -770,19 +769,13 @@ function extractJSON(text){
   return null;
 }
 
-async function callClaude(prompt){
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
+async function callGemini(prompt){
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${getApiKey()}`,{
     method:'POST',
-    headers:{
-      'x-api-key':getApiKey(),
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true',
-      'content-type':'application/json'
-    },
+    headers:{'content-type':'application/json'},
     body:JSON.stringify({
-      model:'claude-sonnet-4-20250514',
-      max_tokens:1024,
-      messages:[{role:'user',content:prompt}]
+      contents:[{parts:[{text:prompt}]}],
+      generationConfig:{temperature:0.3,maxOutputTokens:1024}
     })
   });
   if(!res.ok){
@@ -790,7 +783,7 @@ async function callClaude(prompt){
     throw new Error(`API ${res.status}: ${e}`);
   }
   const data=await res.json();
-  return data.content?.[0]?.text||'';
+  return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
 }
 
 async function aiAnalyse(sid){
@@ -824,7 +817,7 @@ Sentiment values must be exactly: positive, neutral, or negative. Identify exact
   try{
     const resEl=$id('cxres');
     if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Analysing responses…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Running sentiment analysis with Claude</div></div></div>`;
-    const text=await callClaude(prompt);
+    const text=await callGemini(prompt);
     const result=extractJSON(text);
     if(!result)throw new Error('Could not parse JSON from response');
     return result;
@@ -832,8 +825,8 @@ Sentiment values must be exactly: positive, neutral, or negative. Identify exact
     console.error('Analysis error:',e);
     const resEl=$id('cxres');
     if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
-      <strong>Analysis failed.</strong><br>${e.message.includes('401')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
-      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rComments($id('tc'))">Re-enter API Key</button>
+      <strong>Analysis failed.</strong><br>${e.message.includes('400')||e.message.includes('401')||e.message.includes('403')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
+      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rComments(document.getElementById('tc'))">Re-enter API Key</button>
     </div>`;
     return null;
   }
@@ -861,7 +854,7 @@ The urgency field must be exactly one of: immediate, short-term, or ongoing. Pro
   try{
     const resEl=$id('sugres');
     if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Analysing scores and themes with Claude</div></div></div>`;
-    const text=await callClaude(prompt);
+    const text=await callGemini(prompt);
     const result=extractJSON(text);
     if(!result)throw new Error('Could not parse JSON from response');
     return result;
@@ -869,8 +862,8 @@ The urgency field must be exactly one of: immediate, short-term, or ongoing. Pro
     console.error('Suggestions error:',e);
     const resEl=$id('sugres');
     if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
-      <strong>Generation failed.</strong><br>${e.message.includes('401')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
-      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rSuggestions($id('tc'))">Re-enter API Key</button>
+      <strong>Generation failed.</strong><br>${e.message.includes('400')||e.message.includes('401')||e.message.includes('403')?'Invalid API key — please check and try again.':e.message.includes('429')?'Rate limit reached — please wait a moment and try again.':e.message}
+      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rSuggestions(document.getElementById('tc'))">Re-enter API Key</button>
     </div>`;
     return null;
   }
