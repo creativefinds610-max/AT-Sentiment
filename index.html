@@ -537,9 +537,17 @@ async function rComments(tc){
   if(!S.selCx&&S.rounds.length)S.selCx=S.rounds[S.rounds.length-1].id;
   const sid=S.selCx,selRound=S.rounds.find(r=>r.id===sid);
   if(!S.cxCache[sid]){const cached=await loadAnalysis(sid);if(cached)S.cxCache[sid]=cached;}
+  // Detect stale cache: new responses submitted since last analysis was run
+  if(S.cxCache[sid]&&selRound&&!selRound.isHist){
+    const cur=selRound.count||0,prev=S.cxCache[sid]._totalRespondents||0;
+    if(prev<cur){delete S.cxCache[sid];}  // wipe stale cache so Analyse runs fresh
+  }
   const analysis=S.cxCache[sid];
+  const staleNote=!analysis&&selRound&&!selRound.isHist&&(selRound.count||0)>0
+    ?`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.25);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--awk);display:flex;gap:10px;align-items:flex-start;margin-bottom:4px;">⚠️ <span>Analysis is out of date — new responses have been submitted. Click <strong>Analyse</strong> to run a fresh analysis across all <strong>${selRound.count} response${selRound.count!==1?'s':''}</strong>.</span></div>`
+    :'';
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Comment Analysis</div><div class="ss">AI-powered clustering and sentiment analysis of open responses</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selCxR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runCx('${sid}')">${S.analysing?'<span class="spin-sm"></span>Analysing…':'🤖 Analyse'}</button></div></div>
-  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Claude API…</div></div></div>`:!getApiKey()?apiKeyBanner('cxres'):analysis?renderCx(analysis,sid):`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click \"Analyse\" to run AI-powered theme clustering and sentiment analysis using Claude.</div></div>`}</div></div>`;
+  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API…</div></div></div>`:!getApiKey()?apiKeyBanner('cxres'):analysis?renderCx(analysis,sid):staleNote+`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click \"Analyse\" to run AI-powered theme clustering and sentiment analysis across all responses.</div></div>`}</div></div>`;
 }
 
 function renderCx(a,sid){
@@ -589,11 +597,19 @@ async function toggleRaw(sid){
 /* ── SUGGESTIONS ── */
 async function rSuggestions(tc){
   if(!S.selSug&&S.rounds.length)S.selSug=S.rounds[S.rounds.length-1].id;
-  const sid=S.selSug;
+  const sid=S.selSug,selRoundSug=S.rounds.find(r=>r.id===sid);
   if(!S.sugCache[sid]){const cached=await loadSuggestions(sid);if(cached)S.sugCache[sid]=cached;}
+  // Detect stale suggestions cache
+  if(S.sugCache[sid]&&selRoundSug&&!selRoundSug.isHist){
+    const cur=selRoundSug.count||0,prev=S.cxCache[sid]?._totalRespondents||S.sugCache[sid]._totalRespondents||0;
+    if(prev<cur){delete S.sugCache[sid];}
+  }
   const sugs=S.sugCache[sid];
+  const staleSugNote=!sugs&&selRoundSug&&!selRoundSug.isHist&&(selRoundSug.count||0)>0
+    ?`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.25);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--awk);display:flex;gap:10px;align-items:flex-start;margin-bottom:4px;">⚠️ <span>Suggestions are out of date — new responses have been submitted. Click <strong>Generate</strong> to create fresh recommendations across all <strong>${selRoundSug.count} response${selRoundSug.count!==1?'s':''}</strong>.</span></div>`
+    :'';
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">AI Suggestions</div><div class="ss">Actionable recommendations based on scores and team feedback</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selSugR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runSug('${sid}')">${S.suggesting?'<span class="spin-sm"></span>Generating…':'✨ Generate'}</button></div></div>
-  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Claude API…</div></div></div>`:!getApiKey()?apiKeyBanner('sugres'):sugs?renderSugs(sugs):`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click \"Generate\" for AI-powered recommendations. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
+  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API…</div></div></div>`:!getApiKey()?apiKeyBanner('sugres'):sugs?renderSugs(sugs):staleSugNote+`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click \"Generate\" for AI-powered recommendations. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
 }
 
 function renderSugs(sugs){
