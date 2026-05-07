@@ -266,10 +266,7 @@ const S={
    DATA LAYER  (Supabase)
 ──────────────────────────────────────────── */
 async function initData(){
-  // Load rounds from Supabase
   let rows=await supa('rounds?select=*&order=date.asc');
-
-  // First-time setup: seed historical rounds if table is empty
   if(!rows||!rows.length){
     for(const h of HIST){
       await supa('rounds',{method:'POST',headers:{'Prefer':'return=minimal'},
@@ -277,8 +274,6 @@ async function initData(){
     }
     rows=await supa('rounds?select=*&order=date.asc');
   }
-
-  // Ensure comment data exists for historical rounds (idempotent)
   const existingCx=await supa('comments_cache?select=round_id');
   const hasCx=new Set((existingCx||[]).map(r=>r.round_id));
   for(const h of HIST){
@@ -287,7 +282,6 @@ async function initData(){
         body:JSON.stringify({round_id:h.id,data:h.cx})});
     }
   }
-
   S.rounds=(rows||[]).map(r=>({
     id:r.id,name:r.name,short:r.short,date:r.date,
     status:r.status,isHist:r.is_hist,label:r.label,
@@ -296,13 +290,11 @@ async function initData(){
   S.activeRound=S.rounds.find(r=>r.status==='open')||null;
 }
 
-// Re-fetch rounds from Supabase — called when admin dashboard opens to ensure
-// any rounds created on other devices are visible immediately.
 async function refreshRounds(){
   try{
     const rows=await supa('rounds?select=*&order=date.asc');
     if(rows&&rows.length){
-      S.rounds=(rows||[]).map(r=>({
+      S.rounds=rows.map(r=>({
         id:r.id,name:r.name,short:r.short,date:r.date,
         status:r.status,isHist:r.is_hist,label:r.label,
         q1:parseFloat(r.q1)||0,q2:parseFloat(r.q2)||0,q3:parseFloat(r.q3)||0,count:r.count||0
@@ -316,30 +308,24 @@ async function loadResp(rid){
   const d=await supa(`responses?round_id=eq.${rid}&select=*&order=timestamp.asc`);
   return(d||[]).map(r=>({id:r.id,timestamp:r.timestamp,scores:r.scores,comments:r.comments}));
 }
-
 async function saveResp(rid,resp){
   await supa('responses',{method:'POST',headers:{'Prefer':'return=minimal'},
     body:JSON.stringify({id:resp.id,round_id:rid,timestamp:resp.timestamp,scores:resp.scores,comments:resp.comments})});
 }
-
 async function submitted(rid,name){
   const h=nh(name,rid);
   const d=await supa(`submissions?round_id=eq.${rid}&hash=eq.${h}&select=hash`);
   return d&&d.length>0;
 }
-
 async function addSub(rid,h){
   await supa('submissions',{method:'POST',headers:{'Prefer':'return=minimal'},
     body:JSON.stringify({round_id:rid,hash:h})});
 }
-
 async function getMetrics(rid){
   const r=S.rounds.find(x=>x.id===rid);if(!r)return null;
-  // Use stored values for historical and closed rounds (fast, no extra DB call)
   if(r.isHist||r.status==='closed'){
     return{q1:r.q1,q2:r.q2,q3:r.q3,comp:+((r.q1+r.q2+r.q3)/3).toFixed(2),n:r.count};
   }
-  // For open rounds: compute live from Supabase
   const resp=await loadResp(rid);
   if(!resp.length)return{q1:0,q2:0,q3:0,comp:0,n:0};
   const n=resp.length,
@@ -348,7 +334,6 @@ async function getMetrics(rid){
         q3=resp.reduce((s,r)=>s+r.scores.q3,0)/n;
   return{q1:+q1.toFixed(2),q2:+q2.toFixed(2),q3:+q3.toFixed(2),comp:+((q1+q2+q3)/3).toFixed(2),n};
 }
-
 async function loadCxData(sid){
   const d=await supa(`comments_cache?round_id=eq.${sid}&select=data`);
   return d&&d.length?d[0].data:null;
@@ -394,16 +379,13 @@ function switchTab(t){S.tab=t;document.querySelectorAll('.tab').forEach(b=>{b.cl
 function hdr(showAdmin=true){
   return`<header class="sh"><div class="sh-in"><div class="logo"><div class="lm">AT</div><div><div class="ln">${APP}</div><div class="ls">Team Sentiment Survey</div></div></div>${showAdmin?`<a href="#" class="hal" onclick="nav('admin-login');return false;">Admin →</a>`:''}</div></header>`;
 }
-
 function vLanding(){
   const r=S.activeRound;
   return`${hdr()}<div class="sp"><div class="wrap"><div class="hero"><div class="hbadge">💬 Team Bonding Survey${r?' · '+r.name:''}</div><h1>${APP}</h1><p>A short anonymous survey to help us understand how connected we feel as a team and what, if anything, we can do to improve.</p></div>${r?`<div class="card"><p style="font-size:15px;color:var(--txt-md);line-height:1.7;margin-bottom:20px;">This survey should take only a few minutes. Your honest answers help shape how we bond and grow as a team.</p><div class="alert al-info" style="margin-bottom:20px;"><span>🔒</span><span>Your responses are <strong>completely anonymous</strong>. Only your first name is used to confirm access and prevent duplicate submissions — it is <strong>never</strong> stored alongside your answers.</span></div><button class="btn btn-p btn-full" style="font-size:16px;padding:15px;" onclick="nav('name-entry')">Start Survey →</button></div>`:`<div class="nsurv"><div style="font-size:56px;margin-bottom:16px;">📋</div><h2 style="font-size:22px;color:var(--navy);margin-bottom:8px;">No Active Survey</h2><p style="color:var(--txt-md);font-size:15px;">There's no survey open right now. Check back when the next round opens.</p></div>`}</div></div>`;
 }
-
 function vNameEntry(){
   return`${hdr(false)}<div class="sp"><div class="wrap"><div class="card" style="animation:up .3s ease;"><h2 style="font-size:22px;font-weight:800;color:var(--navy);margin-bottom:18px;">Before we begin</h2><div class="pvbox"><div style="font-size:24px;flex-shrink:0;margin-top:1px;">🛡️</div><div class="pvtxt"><strong>Your privacy matters to us.</strong><br>We ask for your first name <em>only</em> to confirm you've accessed this survey and to prevent duplicate submissions. <strong>Your name will NOT be recorded alongside your answers</strong> — every response is stored completely anonymously. Please answer as openly and honestly as you feel comfortable.</div></div><div class="tf"><label class="fl" for="ni">Your first name</label><input type="text" id="ni" class="ti" placeholder="Enter your first name…" value="${S.name}" autocomplete="off" oninput="S.name=this.value.trim()" onkeydown="if(event.key==='Enter')doName()"/></div><div id="nerr" style="display:none;" class="alert al-err" style="margin-bottom:14px;"></div><button class="btn btn-p btn-full" style="font-size:15px;" onclick="doName()">Continue to Survey →</button><button class="btn btn-s btn-full" style="margin-top:10px;" onclick="nav('landing')">← Back</button></div></div></div>`;
 }
-
 function vSurvey(){
   const a=S.ans;
   function sr(q,v){return`<div class="sg">${[1,2,3,4,5,6,7,8,9,10].map(i=>`<button class="sb${v===i?' on':''}" onclick="pickScore('${q}',${i})">${i}</button>`).join('')}</div><div class="slbls"><span>Not at all</span><span>Very much</span></div>`;}
@@ -423,22 +405,17 @@ function vSurvey(){
   <button class="btn btn-p btn-full" style="font-size:15px;" id="subbtn" onclick="doSubmit()">Submit Survey ✓</button>
   </div></div></div>`;
 }
-
 function vSuccess(){
   const sc2=S.submitted;
   return`${hdr(false)}<div class="sp"><div class="wrap"><div class="card" style="text-align:center;animation:up .4s ease;"><div style="font-size:72px;margin-bottom:16px;animation:up .5s ease;">🎉</div><h2 style="font-size:26px;font-weight:800;color:var(--navy);margin-bottom:12px;">Thank you!</h2><p style="color:var(--txt-md);font-size:15px;line-height:1.7;margin-bottom:28px;">Your feedback has been recorded anonymously. It helps us build a more connected, open team. We truly appreciate your honesty!</p><div style="background:var(--cream);border-radius:14px;padding:22px;margin-bottom:20px;"><div style="font-size:11px;font-weight:700;color:var(--txt-lt);text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px;">Your Scores</div><div class="trio"><div class="trio-c"><div class="trio-v" style="color:${lsc(sc2.q1)}">${sc2.q1}</div><div class="trio-l">Connectedness</div></div><div class="trio-c"><div class="trio-v" style="color:${lsc(sc2.q2)}">${sc2.q2}</div><div class="trio-l">Reach Out</div></div><div class="trio-c"><div class="trio-v" style="color:${lsc(sc2.q3)}">${sc2.q3}</div><div class="trio-l">Openness</div></div></div><p style="font-size:12px;color:var(--txt-lt);margin-top:12px;">These are your personal scores only — team averages are not shown to respondents.</p></div><div class="alert al-ok">✅ Your name has not been stored alongside these responses. All data is completely anonymous.</div></div></div></div>`;
 }
 
 /* ────────────────────────────────────────────
-   RENDER: ADMIN LOGIN
+   RENDER: ADMIN
 ──────────────────────────────────────────── */
 function vAdminLogin(){
   return`<div class="alp"><div class="lcard"><div class="llm">AT</div><div class="lt">${APP}</div><div class="ls2">Admin Dashboard — Restricted Access</div><div id="lerr" class="lerr">Incorrect password. Please try again.</div><input type="password" id="pwin" class="lin" placeholder="Enter admin password…" onkeydown="if(event.key==='Enter')doLogin()"/><button class="lbtn" onclick="doLogin()">Sign In →</button><a href="#" class="lback" onclick="nav('landing');return false;">← Back to Survey</a></div></div>`;
 }
-
-/* ────────────────────────────────────────────
-   RENDER: ADMIN DASHBOARD
-──────────────────────────────────────────── */
 async function vAdminDash(){
   const app=$id('app');
   app.innerHTML=`<div class="ap" id="adp">
@@ -452,16 +429,11 @@ async function vAdminDash(){
     </div></nav>
     <div id="tc" class="tc"><div class="lc"><div class="spinner"></div><span style="font-size:14px;">Loading…</span></div></div>
   </div>`;
-  // Always refresh rounds from Supabase when admin opens dashboard
-  // This ensures rounds created on other devices are immediately visible
   await refreshRounds();
   await rTab(S.tab);
 }
-
 async function rTab(tab){
-  S.tab=tab;
-  const tc=$id('tc');
-  if(!tc)return;
+  S.tab=tab;const tc=$id('tc');if(!tc)return;
   switch(tab){
     case'overview':    await rOverview(tc);    break;
     case'trends':      await rTrends(tc);      break;
@@ -537,23 +509,21 @@ async function rComments(tc){
   if(!S.selCx&&S.rounds.length)S.selCx=S.rounds[S.rounds.length-1].id;
   const sid=S.selCx,selRound=S.rounds.find(r=>r.id===sid);
   if(!S.cxCache[sid]){const cached=await loadAnalysis(sid);if(cached)S.cxCache[sid]=cached;}
-  // Detect stale cache: new responses submitted since last analysis was run
   if(S.cxCache[sid]&&selRound&&!selRound.isHist){
     const cur=selRound.count||0,prev=S.cxCache[sid]._totalRespondents||0;
-    if(prev<cur){delete S.cxCache[sid];}  // wipe stale cache so Analyse runs fresh
+    if(prev<cur){delete S.cxCache[sid];}
   }
   const analysis=S.cxCache[sid];
   const staleNote=!analysis&&selRound&&!selRound.isHist&&(selRound.count||0)>0
     ?`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.25);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--awk);display:flex;gap:10px;align-items:flex-start;margin-bottom:4px;">⚠️ <span>Analysis is out of date — new responses have been submitted. Click <strong>Analyse</strong> to run a fresh analysis across all <strong>${selRound.count} response${selRound.count!==1?'s':''}</strong>.</span></div>`
     :'';
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">Comment Analysis</div><div class="ss">AI-powered clustering and sentiment analysis of open responses</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selCxR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runCx('${sid}')">${S.analysing?'<span class="spin-sm"></span>Analysing…':'🤖 Analyse'}</button></div></div>
-  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API…</div></div></div>`:!getApiKey()?apiKeyBanner('cxres'):analysis?renderCx(analysis,sid):staleNote+`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click \"Analyse\" to run AI-powered theme clustering and sentiment analysis across all responses.</div></div>`}</div></div>`;
+  <div id="cxres">${S.analysing?`<div class="lc"><div class="spinner"></div><div><strong>Running analysis…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API…</div></div></div>`:!getApiKey()?apiKeyBanner('cxres'):analysis?renderCx(analysis,sid):staleNote+`<div class="empty"><div class="ei">💬</div><div class="et">No analysis yet</div><div class="es">Click "Analyse" to run AI-powered theme clustering and sentiment analysis across all responses.</div></div>`}</div></div>`;
 }
 
 function renderCx(a,sid){
   const cfg={positive:{bc:'sb-p',cc:'cl-p',bd:'cb-p',lbl:'Positive',ico:'😊'},neutral:{bc:'sb-n',cc:'cl-n',bd:'cb-n',lbl:'Mixed / Neutral',ico:'😐'},negative:{bc:'sb-b',cc:'cl-b',bd:'cb-b',lbl:'Concerns Detected',ico:'😟'}};
   const oc=cfg[a.overallSentiment]||cfg.neutral;
-  // Show a note if some respondents didn't leave comments
   let coverageNote='';
   if(a._totalRespondents&&a._respondentsWithComments&&a._respondentsWithComments<a._totalRespondents){
     const silent=a._totalRespondents-a._respondentsWithComments;
@@ -599,7 +569,6 @@ async function rSuggestions(tc){
   if(!S.selSug&&S.rounds.length)S.selSug=S.rounds[S.rounds.length-1].id;
   const sid=S.selSug,selRoundSug=S.rounds.find(r=>r.id===sid);
   if(!S.sugCache[sid]){const cached=await loadSuggestions(sid);if(cached)S.sugCache[sid]=cached;}
-  // Detect stale suggestions cache
   if(S.sugCache[sid]&&selRoundSug&&!selRoundSug.isHist){
     const cur=selRoundSug.count||0,prev=S.cxCache[sid]?._totalRespondents||S.sugCache[sid]._totalRespondents||0;
     if(prev<cur){delete S.sugCache[sid];}
@@ -609,7 +578,7 @@ async function rSuggestions(tc){
     ?`<div style="background:rgba(245,185,66,.08);border:1px solid rgba(245,185,66,.25);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--awk);display:flex;gap:10px;align-items:flex-start;margin-bottom:4px;">⚠️ <span>Suggestions are out of date — new responses have been submitted. Click <strong>Generate</strong> to create fresh recommendations across all <strong>${selRoundSug.count} response${selRoundSug.count!==1?'s':''}</strong>.</span></div>`
     :'';
   tc.innerHTML=`<div class="awrap" style="animation:fi .3s ease;"><div class="sh2"><div><div class="st">AI Suggestions</div><div class="ss">Actionable recommendations based on scores and team feedback</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><select class="asel" onchange="selSugR(this.value)">${S.rounds.map(r=>`<option value="${r.id}"${r.id===sid?' selected':''}>${r.name}</option>`).join('')}</select><button class="abtn abtn-ac btn-sm" onclick="runSug('${sid}')">${S.suggesting?'<span class="spin-sm"></span>Generating…':'✨ Generate'}</button></div></div>
-  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API…</div></div></div>`:!getApiKey()?apiKeyBanner('sugres'):sugs?renderSugs(sugs):staleSugNote+`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click \"Generate\" for AI-powered recommendations. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
+  <div id="sugres">${S.suggesting?`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API…</div></div></div>`:!getApiKey()?apiKeyBanner('sugres'):sugs?renderSugs(sugs):staleSugNote+`<div class="empty"><div class="ei">💡</div><div class="et">No suggestions yet</div><div class="es">Click "Generate" for AI-powered recommendations. Run Comment Analysis first for best results.</div></div>`}</div></div>`;
 }
 
 function renderSugs(sugs){
@@ -654,7 +623,6 @@ function pickScore(q,v){
   const prg=$id('prg');
   if(prg)prg.style.width=Math.min(100,done/3*45+((S.ans.q4||S.ans.q5||S.ans.q6||S.ans.q7||S.ans.q8)?55:0))+'%';
 }
-
 async function doName(){
   const ni=$id('ni'),name=(ni?.value||'').trim();
   const errEl=$id('nerr');
@@ -668,7 +636,6 @@ async function doName(){
   }
   nav('survey');
 }
-
 async function doSubmit(){
   const a=S.ans;
   if(!a.q1||!a.q2||!a.q3){
@@ -683,7 +650,6 @@ async function doSubmit(){
     if(S.activeRound){
       await saveResp(S.activeRound.id,resp);
       await addSub(S.activeRound.id,nh(S.name,S.activeRound.id));
-      // Update response count in Supabase
       const idx=S.rounds.findIndex(r=>r.id===S.activeRound.id);
       if(idx>=0){
         S.rounds[idx].count=(S.rounds[idx].count||0)+1;
@@ -701,32 +667,50 @@ async function doSubmit(){
     if(el){el.style.display='flex';el.innerHTML='<span>⚠️</span><span>There was a problem saving your response. Please check your connection and try again.</span>';}
   }
 }
-
 function doLogin(){
   const pw=$id('pwin')?.value||'',el=$id('lerr');
   if(pw===PW){S.admin=true;nav('admin-dashboard');}
   else{if(el)el.style.display='block';if($id('pwin')){$id('pwin').value='';$id('pwin').focus();}}
 }
 function doLogout(){S.admin=false;nav('landing');}
-
 async function adminRefresh(){
   await refreshRounds();
-  // Clear in-memory caches so fresh data is loaded from Supabase
   S.cxCache={};S.sugCache={};
   const tc=$id('tc');if(tc)await rTab(S.tab);
 }
-
 function selCxR(v){S.selCx=v;const tc=$id('tc');if(tc)rComments(tc);}
 function selSugR(v){S.selSug=v;const tc=$id('tc');if(tc)rSuggestions(tc);}
 
+/* ─────────────────────────────────────────────────────────────────
+   BUG FIX — runCx / runSug
+   
+   Original bug: after aiAnalyse/aiSuggestions returned (whether
+   success or failure), runCx always called rComments() at the end,
+   which re-rendered the entire tab and wiped out any error message
+   that aiAnalyse had written to #cxres. This caused silent failures
+   where the admin just saw "No analysis yet" again after every
+   failed attempt.
+   
+   Fix: only re-render the tab on SUCCESS. On failure, aiAnalyse
+   already wrote a descriptive error message to #cxres — leave it
+   visible. Also wrap saveAnalysis/saveSuggestions in try-catch so
+   a DB write failure cannot crash the success render path.
+───────────────────────────────────────────────────────────────── */
 async function runCx(sid){
   if(S.analysing)return;
   S.analysing=true;
   const tc=$id('tc');if(tc)await rComments(tc);
   const result=await aiAnalyse(sid);
   S.analysing=false;
-  if(result){S.cxCache[sid]=result;await saveAnalysis(sid,result);}
-  if(tc)await rComments(tc);
+  if(result){
+    S.cxCache[sid]=result;
+    try{await saveAnalysis(sid,result);}
+    catch(e){console.warn('saveAnalysis failed (result still shown):',e);}
+    // Only re-render the tab on success — the results are now in cache
+    if(tc)await rComments(tc);
+  }
+  // On failure: aiAnalyse already wrote the error message to #cxres.
+  // Do NOT call rComments() here — it would wipe that error message.
 }
 
 async function runSug(sid){
@@ -740,8 +724,15 @@ async function runSug(sid){
   const tc=$id('tc');if(tc)await rSuggestions(tc);
   const result=await aiSuggestions(sid);
   S.suggesting=false;
-  if(result){S.sugCache[sid]=result;await saveSuggestions(sid,result);}
-  if(tc)await rSuggestions(tc);
+  if(result){
+    S.sugCache[sid]=result;
+    try{await saveSuggestions(sid,result);}
+    catch(e){console.warn('saveSuggestions failed (result still shown):',e);}
+    // Only re-render the tab on success
+    if(tc)await rSuggestions(tc);
+  }
+  // On failure: aiSuggestions already wrote the error message to #sugres.
+  // Do NOT call rSuggestions() here — it would wipe that error message.
 }
 
 async function createRound(){
@@ -755,7 +746,6 @@ async function createRound(){
   S.rounds.push(nr);S.activeRound=nr;
   const tc=$id('tc');if(tc)await rRounds(tc);
 }
-
 async function closeRound(rid){
   const resps=await loadResp(rid);
   const updates={status:'closed'};
@@ -772,7 +762,6 @@ async function closeRound(rid){
   S.activeRound=null;
   const tc=$id('tc');if(tc)await rRounds(tc);
 }
-
 async function deleteRound(rid){
   const r=S.rounds.find(x=>x.id===rid);
   if(!r)return;
@@ -783,7 +772,6 @@ async function deleteRound(rid){
     :`Delete "${r.name}"?\n\nThis will permanently remove the round and all its data. This cannot be undone.\n\nType DELETE to confirm.`;
   const conf=window.prompt(msg);
   if((conf||'').trim().toUpperCase()!=='DELETE')return;
-  // ON DELETE CASCADE in Supabase handles responses, submissions, caches
   await supa(`rounds?id=eq.${rid}`,{method:'DELETE'});
   S.rounds=S.rounds.filter(x=>x.id!==rid);
   if(S.activeRound?.id===rid)S.activeRound=null;
@@ -792,14 +780,10 @@ async function deleteRound(rid){
 }
 
 /* ────────────────────────────────────────────
-   AI CALLS  (Google Gemini API — free tier)
+   AI — API KEY
 ──────────────────────────────────────────── */
-
-// API key stored in memory for this session only — never persisted
 let _apiKey='';
-
 function getApiKey(){return _apiKey;}
-
 function setApiKey(k){_apiKey=(k||'').trim();}
 
 function apiKeyBanner(targetEl){
@@ -814,7 +798,6 @@ function apiKeyBanner(targetEl){
     <div id="apikeyerr" style="display:none;margin-top:10px;font-size:12px;color:var(--aer);"></div>
   </div>`;
 }
-
 function saveApiKey(targetEl){
   const val=($id('apiKeyInput')?.value||'').trim();
   const err=$id('apikeyerr');
@@ -825,6 +808,9 @@ function saveApiKey(targetEl){
   else if(targetEl==='sugres')rSuggestions(tc);
 }
 
+/* ────────────────────────────────────────────
+   AI — GROQ API CALLS
+──────────────────────────────────────────── */
 function extractJSON(text){
   try{return JSON.parse(text.trim());}catch(e){}
   try{return JSON.parse(text.replace(/```json\n?|```\n?/g,'').trim());}catch(e){}
@@ -857,11 +843,27 @@ async function callGroq(prompt){
   return data.choices?.[0]?.message?.content||'';
 }
 
+function aiErrHtml(msg,retryFn,isKeyErr){
+  const friendly=isKeyErr
+    ?'Invalid API key — please re-enter your Groq key.'
+    :msg.includes('429')
+      ?'Free-tier rate limit reached — wait 60 seconds and try again.'
+      :msg.includes('network')||msg.includes('fetch')
+        ?'Network error — check your connection and try again.'
+        :msg;
+  return`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
+    <strong>⚠️ Analysis failed</strong><br><br>${friendly}
+    <details style="margin-top:10px;opacity:.6;font-size:11px;"><summary style="cursor:pointer;">Technical detail</summary><code style="word-break:break-all;">${msg}</code></details>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+      ${isKeyErr?`<button class="abtn btn-sm" onclick="setApiKey('');rComments(document.getElementById('tc'))">🔑 Re-enter API Key</button>`:''}
+      <button class="abtn btn-sm" onclick="${retryFn}">↻ Try Again</button>
+    </div>
+  </div>`;
+}
+
 async function aiAnalyse(sid){
   const r=S.rounds.find(x=>x.id===sid);
-  let cx;
-  let totalRespondents=0;
-  let respondentsWithComments=0;
+  let cx,totalRespondents=0,respondentsWithComments=0;
   if(r&&r.isHist){
     const cxData=await loadCxData(sid);
     if(cxData){
@@ -873,7 +875,6 @@ async function aiAnalyse(sid){
     const resps=await loadResp(sid);
     if(!resps.length)return null;
     totalRespondents=resps.length;
-    // Count respondents who left at least one comment
     respondentsWithComments=resps.filter(resp=>
       (resp.comments.q4||'').trim()||(resp.comments.q5||'').trim()||
       (resp.comments.q6||'').trim()||(resp.comments.q7||'').trim()||(resp.comments.q8||'').trim()
@@ -887,14 +888,13 @@ async function aiAnalyse(sid){
     };
   }
   if(!cx)return null;
-  // If nobody left comments, we can't run analysis
   if(!respondentsWithComments){
     const resEl=$id('cxres');
-    if(resEl)resEl.innerHTML=`<div class="empty"><div class="ei">💬</div><div class="et">No comments to analyse</div><div class="es">${totalRespondents} respondent${totalRespondents!==1?'s':''} submitted scores but no comment responses were provided.</div></div>`;
+    if(resEl)resEl.innerHTML=`<div class="empty"><div class="ei">💬</div><div class="et">No comments to analyse</div><div class="es">${totalRespondents} respondent${totalRespondents!==1?'s':''} submitted scores but no written comments were provided.</div></div>`;
     return null;
   }
   const respondentNote=respondentsWithComments<totalRespondents
-    ?`Note: ${totalRespondents} total respondents, ${respondentsWithComments} provided comments (${totalRespondents-respondentsWithComments} submitted scores only).`
+    ?`Note: ${totalRespondents} total respondents, ${respondentsWithComments} provided comments.`
     :`All ${totalRespondents} respondents provided comments.`;
   const prompt=`You are analysing anonymous team survey responses for a data analytics translation team. Study the responses and return a JSON analysis.
 
@@ -916,21 +916,18 @@ Respond with ONLY a valid JSON object, no prose or markdown. Use this exact stru
 Sentiment values must be exactly: positive, neutral, or negative. Identify exactly 4 to 6 distinct themes.`;
   try{
     const resEl=$id('cxres');
-    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Analysing responses…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Running sentiment analysis with Claude</div></div></div>`;
+    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Analysing responses…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API — this usually takes 5–10 seconds</div></div></div>`;
     const text=await callGroq(prompt);
     const result=extractJSON(text);
-    if(!result)throw new Error('Could not parse JSON from response');
-    // Attach respondent counts to result so the UI can show coverage info
+    if(!result)throw new Error('Could not parse JSON from model response. Raw output: '+text.substring(0,200));
     result._totalRespondents=totalRespondents;
     result._respondentsWithComments=respondentsWithComments;
     return result;
   }catch(e){
     console.error('Analysis error:',e);
     const resEl=$id('cxres');
-    if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
-      <strong>Analysis failed.</strong><br>${e.message.includes('401')||e.message.includes('403')||e.message.includes('invalid_api_key')?'Invalid API key — please re-enter your Groq key.':e.message.includes('429')?`Free tier rate limit hit — wait 60 seconds and try again.<br><small style='opacity:.7'>${e.message}</small>`:e.message}
-      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rComments(document.getElementById('tc'))">Re-enter API Key</button>
-    </div>`;
+    const isKeyErr=e.message.includes('401')||e.message.includes('403')||e.message.includes('invalid_api_key')||e.message.includes('Invalid API key');
+    if(resEl)resEl.innerHTML=aiErrHtml(e.message,`runCx('${sid}')`,isKeyErr);
     return null;
   }
 }
@@ -956,18 +953,16 @@ Respond with ONLY a valid JSON array, no prose or markdown. Use this exact struc
 The urgency field must be exactly one of: immediate, short-term, or ongoing. Provide exactly 5 items.`;
   try{
     const resEl=$id('sugres');
-    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Analysing scores and themes with Claude</div></div></div>`;
+    if(resEl)resEl.innerHTML=`<div class="lc"><div class="spinner"></div><div><strong>Generating recommendations…</strong><div style="font-size:12px;margin-top:4px;color:var(--atxt-md);">Calling Groq API — this usually takes 5–10 seconds</div></div></div>`;
     const text=await callGroq(prompt);
     const result=extractJSON(text);
-    if(!result)throw new Error('Could not parse JSON from response');
+    if(!result)throw new Error('Could not parse JSON from model response. Raw output: '+text.substring(0,200));
     return result;
   }catch(e){
     console.error('Suggestions error:',e);
     const resEl=$id('sugres');
-    if(resEl)resEl.innerHTML=`<div style="background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.2);border-radius:12px;padding:20px;color:var(--aer);font-size:13px;line-height:1.65;">
-      <strong>Generation failed.</strong><br>${e.message.includes('401')||e.message.includes('403')||e.message.includes('invalid_api_key')?'Invalid API key — please re-enter your Groq key.':e.message.includes('429')?`Free tier rate limit hit — wait 60 seconds and try again.<br><small style='opacity:.7'>${e.message}</small>`:e.message}
-      <br><br><button class="abtn btn-sm" onclick="setApiKey('');rSuggestions(document.getElementById('tc'))">Re-enter API Key</button>
-    </div>`;
+    const isKeyErr=e.message.includes('401')||e.message.includes('403')||e.message.includes('invalid_api_key')||e.message.includes('Invalid API key');
+    if(resEl)resEl.innerHTML=aiErrHtml(e.message,`runSug('${sid}')`,isKeyErr);
     return null;
   }
 }
