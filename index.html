@@ -830,18 +830,13 @@ function extractJSON(text){
 }
 
 async function callGroq(prompt){
-  const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+  // Calls /api/groq — our Vercel serverless proxy — instead of api.groq.com directly.
+  // This routes the request through Vercel's servers, bypassing corporate firewalls
+  // that block browser-to-api.groq.com connections.
+  const res=await fetch('/api/groq',{
     method:'POST',
-    headers:{
-      'Authorization':`Bearer ${getApiKey()}`,
-      'Content-Type':'application/json'
-    },
-    body:JSON.stringify({
-      model:'llama-3.3-70b-versatile',
-      messages:[{role:'user',content:prompt}],
-      temperature:0.3,
-      max_tokens:4096
-    })
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prompt,apiKey:getApiKey()})
   });
   if(!res.ok){
     let errMsg='';
@@ -850,7 +845,8 @@ async function callGroq(prompt){
     throw new Error(`API ${res.status}: ${errMsg}`);
   }
   const data=await res.json();
-  return data.choices?.[0]?.message?.content||'';
+  if(!data.content&&data.content!==''){throw new Error('Empty response from server — please try again.');}
+  return data.content||'';
 }
 
 function aiErrHtml(msg,retryFn,isKeyErr){
