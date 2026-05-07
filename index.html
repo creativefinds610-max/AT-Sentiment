@@ -715,10 +715,20 @@ async function runCx(sid){
 
 async function runSug(sid){
   if(S.suggesting)return;
+  // Load comment analysis into memory without triggering a Comments tab re-render.
+  // Only call the Groq API for analysis if nothing is cached at all.
   if(!S.cxCache[sid]){
     const cached=await loadAnalysis(sid);
-    if(cached)S.cxCache[sid]=cached;
-    else{await runCx(sid);}
+    if(cached){
+      S.cxCache[sid]=cached;
+    } else {
+      // No cache exists yet — run analysis silently (API only, no UI re-render)
+      const analysisResult=await aiAnalyse(sid);
+      if(analysisResult){
+        S.cxCache[sid]=analysisResult;
+        try{await saveAnalysis(sid,analysisResult);}catch(e){console.warn('saveAnalysis failed:',e);}
+      }
+    }
   }
   S.suggesting=true;
   const tc=$id('tc');if(tc)await rSuggestions(tc);
@@ -830,7 +840,7 @@ async function callGroq(prompt){
       model:'llama-3.3-70b-versatile',
       messages:[{role:'user',content:prompt}],
       temperature:0.3,
-      max_tokens:2048
+      max_tokens:4096
     })
   });
   if(!res.ok){
